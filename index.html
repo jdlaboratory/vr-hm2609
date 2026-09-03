@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Virtual Tour</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+  <meta name="description" content="Interactive 360° virtual tour.">
+  <meta name="theme-color" content="#101013">
+  <!-- Inline favicon: avoids a 404 for /favicon.ico. Replace with your own file. -->
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Ccircle cx='16' cy='16' r='13' fill='none' stroke='%23141419' stroke-width='2.5'/%3E%3Cellipse cx='16' cy='16' rx='5.5' ry='13' fill='none' stroke='%23141419' stroke-width='2'/%3E%3Cpath d='M3 16h26' stroke='%23141419' stroke-width='2'/%3E%3C/svg%3E">
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+  <!-- ==========================================================
+       Panorama stage. Marzipano renders its canvas inside here.
+       ========================================================== -->
+  <div id="pano" class="pano" role="application"
+       aria-label="360 degree panorama. Drag to look around."></div>
+
+  <!-- ==========================================================
+       UI chrome. Everything here sits above the panorama and is
+       kept deliberately sparse so the space stays the focus.
+       ========================================================== -->
+  <div class="ui" id="ui">
+
+    <header class="ui-top">
+      <h1 class="scene-title" id="sceneTitle" hidden></h1>
+
+      <div class="ui-top-actions">
+        <!-- Scene menu (toggled by settings.sceneMenu) -->
+        <button type="button" class="btn btn-icon" id="menuBtn"
+                aria-haspopup="true" aria-expanded="false" aria-controls="sceneMenu"
+                aria-label="Open scene list" hidden>
+          <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+            <path d="M4 7h16M4 12h16M4 17h16" fill="none" stroke="currentColor"
+                  stroke-width="1.6" stroke-linecap="round"/>
+          </svg>
+        </button>
+      </div>
+    </header>
+
+    <!-- Scene list drawer -->
+    <nav class="scene-menu" id="sceneMenu" aria-label="Scenes" hidden>
+      <ul class="scene-menu-list" id="sceneMenuList"></ul>
+    </nav>
+
+    <footer class="ui-bottom">
+      <p class="hint" id="hint" hidden>Drag to look around</p>
+
+      <button type="button" class="btn btn-icon" id="fullscreenBtn"
+              aria-label="Enter fullscreen" hidden>
+        <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false" class="icon-enter-fs">
+          <path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5" fill="none" stroke="currentColor"
+                stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+        <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false" class="icon-exit-fs">
+          <path d="M9 4v5H4M15 4v5h5M9 20v-5H4M15 20v-5h5" fill="none" stroke="currentColor"
+                stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+      </button>
+    </footer>
+  </div>
+
+  <!-- Loading indicator -->
+  <div class="loader" id="loader" role="status" aria-live="polite">
+    <span class="loader-spinner" aria-hidden="true"></span>
+    <span class="sr-only">Loading panorama</span>
+  </div>
+
+  <!-- Fatal / recoverable error surface -->
+  <div class="error-screen" id="errorScreen" role="alert" hidden>
+    <p class="error-message" id="errorMessage">Unable to load virtual tour.</p>
+    <button type="button" class="btn btn-text" id="errorRetry">Retry</button>
+  </div>
+
+  <!-- ==========================================================
+       Modal used by youtube + info hotspots. Content is injected
+       by js/modal.js; the shell lives here so focus handling and
+       styling stay simple.
+       ========================================================== -->
+  <div class="modal" id="modal" hidden>
+    <div class="modal-backdrop" id="modalBackdrop"></div>
+    <div class="modal-dialog" id="modalDialog" role="dialog" aria-modal="true"
+         aria-labelledby="modalTitle">
+      <h2 class="modal-title" id="modalTitle"></h2>
+      <button type="button" class="modal-close" id="modalClose" aria-label="Close">
+        <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+          <path d="M6 6l12 12M18 6L6 18" fill="none" stroke="currentColor"
+                stroke-width="1.8" stroke-linecap="round"/>
+        </svg>
+      </button>
+      <div class="modal-body" id="modalBody"></div>
+    </div>
+  </div>
+
+  <!-- Marzipano ships as a UMD bundle and defines window.Marzipano.
+       Vendored locally so the tour has no third-party runtime dependency. -->
+  <script src="vendor/marzipano.js"></script>
+  <script type="module" src="js/app.js"></script>
+</body>
+</html>

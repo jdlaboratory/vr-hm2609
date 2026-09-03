@@ -1,0 +1,669 @@
+{
+  "_README": [
+    "This file is the whole tour. Adding, removing or reordering scenes and",
+    "hotspots here is all that is needed - no JavaScript changes.",
+    "",
+    "Anything whose value contains 'SAMPLE' is placeholder content you should",
+    "replace. Every hotspot below is marked \"_sample\": true, because the",
+    "yaw/pitch values were estimated from the panoramas rather than measured.",
+    "Open the tour with ?edit=1, click 'Pick position', click the real spot,",
+    "and paste the generated JSON over the sample entry.",
+    "",
+    "yaw   = left/right, radians, 0 = centre of the source image, range -PI..PI",
+    "pitch = up/down, radians, 0 = horizon, POSITIVE IS DOWN",
+    "fov   = vertical field of view, radians (1.4 rad = about 80 degrees)"
+  ],
+
+  "settings": {
+    "defaultScene": "scene06",
+    "autorotate": false,
+    "autorotateIdleDelayMs": 4000,
+    "sceneMenu": true,
+    "fullscreen": true,
+    "showSceneName": true,
+    "showHint": true,
+    "transitionDurationMs": 500,
+    "updateUrlOnSceneChange": true,
+    "minFov": 0.45,
+    "maxFov": 1.85
+  },
+
+  "scenes": [
+    {
+      "id": "scene01",
+      "name": "Upper Landing",
+      "_source": "assets/source-panoramas/001.jpg",
+      "panorama": {
+        "type": "equirectangular",
+        "url": "assets/panoramas/equirect/scene01_{z}.jpg",
+        "levels": [{ "width": 1024 }, { "width": 4096 }]
+      },
+      "initialView": { "yaw": 0.4, "pitch": 0.05, "fov": 1.4 },
+      "hotspots": [
+        {
+          "id": "scene01-to-scene06",
+          "type": "scene",
+          "target": "scene06",
+          "yaw": -2.3,
+          "pitch": 0.3,
+          "label": "Down to Main Lobby",
+          "_sample": true
+        },
+        {
+          "id": "scene01-to-scene07",
+          "type": "scene",
+          "target": "scene07",
+          "yaw": 1.15,
+          "pitch": 0.2,
+          "label": "Exhibition Entrance",
+          "_sample": true
+        },
+        {
+          "id": "scene01-info",
+          "type": "info",
+          "title": "SAMPLE - About this floor",
+          "content": "Replace this text with your own copy.\n\nBlank lines start a new paragraph. Content is rendered as plain text, so HTML in this field will be shown literally rather than executed.",
+          "yaw": 0.05,
+          "pitch": -0.05,
+          "label": "About this floor",
+          "_sample": true
+        }
+      ]
+    },
+
+    {
+      "id": "scene02",
+      "name": "Café",
+      "_source": "assets/source-panoramas/002.jpg",
+      "panorama": {
+        "type": "equirectangular",
+        "url": "assets/panoramas/equirect/scene02_{z}.jpg",
+        "levels": [{ "width": 1024 }, { "width": 4096 }]
+      },
+      "initialView": { "yaw": 1.2, "pitch": 0.05, "fov": 1.4 },
+      "hotspots": [
+        {
+          "id": "scene02-to-scene06",
+          "type": "scene",
+          "target": "scene06",
+          "yaw": 0.05,
+          "pitch": 0.25,
+          "label": "Main Lobby",
+          "_sample": true
+        },
+        {
+          "id": "scene02-to-scene05",
+          "type": "scene",
+          "target": "scene05",
+          "yaw": -1.9,
+          "pitch": 0.25,
+          "label": "Reading Nook",
+          "_sample": true
+        }
+      ]
+    },
+
+    {
+      "id": "scene03",
+      "name": "Amenities Corridor",
+      "_source": "assets/source-panoramas/003.jpg",
+      "panorama": {
+        "type": "equirectangular",
+        "url": "assets/panoramas/equirect/scene03_{z}.jpg",
+        "levels": [{ "width": 1024 }, { "width": 4096 }]
+      },
+      "initialView": { "yaw": 0, "pitch": 0.05, "fov": 1.4 },
+      "hotspots": [
+        {
+          "id": "scene03-to-scene04",
+          "type": "scene",
+          "target": "scene04",
+          "yaw": -0.24,
+          "pitch": 0.15,
+          "label": "Nursing Room",
+          "_sample": true
+        },
+        {
+          "id": "scene03-to-scene05",
+          "type": "scene",
+          "target": "scene05",
+          "yaw": 1.75,
+          "pitch": 0.25,
+          "label": "Reading Nook",
+          "_sample": true
+        }
+      ]
+    },
+
+    {
+      "id": "scene04",
+      "name": "Nursing Room",
+      "_source": "assets/source-panoramas/004.jpg",
+      "panorama": {
+        "type": "equirectangular",
+        "url": "assets/panoramas/equirect/scene04_{z}.jpg",
+        "levels": [{ "width": 1024 }, { "width": 4096 }]
+      },
+      "initialView": { "yaw": -0.2, "pitch": 0.05, "fov": 1.4 },
+      "hotspots": [
+        {
+          "id": "scene04-to-scene03",
+          "type": "scene",
+          "target": "scene03",
+          "yaw": 1.28,
+          "pitch": 0.22,
+          "label": "Back to Corridor",
+          "_sample": true
+        }
+      ]
+    },
+
+    {
+      "id": "scene05",
+      "name": "Lockers & Reading Nook",
+      "_source": "assets/source-panoramas/005.jpg",
+      "panorama": {
+        "type": "equirectangular",
+        "url": "assets/panoramas/equirect/scene05_{z}.jpg",
+        "levels": [{ "width": 1024 }, { "width": 4096 }]
+      },
+      "initialView": { "yaw": -1.4, "pitch": 0.05, "fov": 1.4 },
+      "hotspots": [
+        {
+          "id": "scene05-to-scene03",
+          "type": "scene",
+          "target": "scene03",
+          "yaw": 0.13,
+          "pitch": 0.25,
+          "label": "Amenities Corridor",
+          "_sample": true
+        },
+        {
+          "id": "scene05-to-scene02",
+          "type": "scene",
+          "target": "scene02",
+          "yaw": -2.15,
+          "pitch": 0.25,
+          "label": "Café",
+          "_sample": true
+        },
+        {
+          "id": "scene05-to-scene06",
+          "type": "scene",
+          "target": "scene06",
+          "yaw": 2.6,
+          "pitch": 0.28,
+          "label": "Main Lobby",
+          "_sample": true
+        }
+      ]
+    },
+
+    {
+      "id": "scene06",
+      "name": "Main Lobby",
+      "_source": "assets/source-panoramas/006.jpg",
+      "panorama": {
+        "type": "equirectangular",
+        "url": "assets/panoramas/equirect/scene06_{z}.jpg",
+        "levels": [{ "width": 1024 }, { "width": 4096 }]
+      },
+      "initialView": { "yaw": 0.5, "pitch": 0.02, "fov": 1.45 },
+      "hotspots": [
+        {
+          "id": "scene06-to-scene02",
+          "type": "scene",
+          "target": "scene02",
+          "yaw": -1.5,
+          "pitch": 0.25,
+          "label": "Café",
+          "_sample": true
+        },
+        {
+          "id": "scene06-to-scene01",
+          "type": "scene",
+          "target": "scene01",
+          "yaw": 0.7,
+          "pitch": 0.1,
+          "label": "Upper Landing",
+          "_sample": true
+        },
+        {
+          "id": "scene06-to-scene13",
+          "type": "scene",
+          "target": "scene13",
+          "yaw": 2.1,
+          "pitch": 0.25,
+          "label": "Ticket Desk",
+          "_sample": true
+        },
+        {
+          "id": "scene06-to-scene05",
+          "type": "scene",
+          "target": "scene05",
+          "yaw": -2.65,
+          "pitch": 0.25,
+          "label": "Lockers",
+          "_sample": true
+        }
+      ]
+    },
+
+    {
+      "id": "scene07",
+      "name": "Exhibition Entrance",
+      "_source": "assets/source-panoramas/007.jpg",
+      "panorama": {
+        "type": "equirectangular",
+        "url": "assets/panoramas/equirect/scene07_{z}.jpg",
+        "levels": [{ "width": 1024 }, { "width": 4096 }]
+      },
+      "initialView": { "yaw": -0.3, "pitch": 0.02, "fov": 1.4 },
+      "hotspots": [
+        {
+          "id": "scene07-to-scene08",
+          "type": "scene",
+          "target": "scene08",
+          "yaw": -1.05,
+          "pitch": 0.2,
+          "label": "Enter the exhibition",
+          "_sample": true
+        },
+        {
+          "id": "scene07-to-scene13",
+          "type": "scene",
+          "target": "scene13",
+          "yaw": 2.05,
+          "pitch": 0.25,
+          "label": "Ticket Desk",
+          "_sample": true
+        },
+        {
+          "id": "scene07-info",
+          "type": "info",
+          "title": "SAMPLE - Current exhibition",
+          "content": "Replace this with the exhibition description, opening hours, or any other note you want visitors to read at this point in the tour.\n\nAn optional \"image\" property can point at a relative image path, for example \"assets/icons/info.svg\".",
+          "yaw": -0.3,
+          "pitch": -0.1,
+          "label": "Exhibition information",
+          "_sample": true
+        }
+      ]
+    },
+
+    {
+      "id": "scene08",
+      "name": "Intro Projection",
+      "_source": "assets/source-panoramas/008.jpg",
+      "panorama": {
+        "type": "equirectangular",
+        "url": "assets/panoramas/equirect/scene08_{z}.jpg",
+        "levels": [{ "width": 1024 }, { "width": 4096 }]
+      },
+      "initialView": { "yaw": 0, "pitch": 0, "fov": 1.4 },
+      "hotspots": [
+        {
+          "id": "scene08-video",
+          "type": "youtube",
+          "videoId": "aqz-KE-bpKQ",
+          "title": "SAMPLE - Introduction film",
+          "yaw": 0,
+          "pitch": -0.05,
+          "label": "Watch the intro film",
+          "_sample": true,
+          "_note": "Replace videoId with your own 11-character YouTube id. A full YouTube URL is also accepted."
+        },
+        {
+          "id": "scene08-to-scene09",
+          "type": "scene",
+          "target": "scene09",
+          "yaw": 2.55,
+          "pitch": 0.22,
+          "label": "Screening Room",
+          "_sample": true
+        },
+        {
+          "id": "scene08-to-scene07",
+          "type": "scene",
+          "target": "scene07",
+          "yaw": -2.32,
+          "pitch": 0.25,
+          "label": "Back to Entrance",
+          "_sample": true
+        }
+      ]
+    },
+
+    {
+      "id": "scene09",
+      "name": "Screening Room",
+      "_source": "assets/source-panoramas/009.jpg",
+      "panorama": {
+        "type": "equirectangular",
+        "url": "assets/panoramas/equirect/scene09_{z}.jpg",
+        "levels": [{ "width": 1024 }, { "width": 4096 }]
+      },
+      "initialView": { "yaw": 0.6, "pitch": 0, "fov": 1.4 },
+      "hotspots": [
+        {
+          "id": "scene09-to-scene08",
+          "type": "scene",
+          "target": "scene08",
+          "yaw": -2.2,
+          "pitch": 0.25,
+          "label": "Intro Projection",
+          "_sample": true
+        },
+        {
+          "id": "scene09-to-scene10",
+          "type": "scene",
+          "target": "scene10",
+          "yaw": 2.8,
+          "pitch": 0.25,
+          "label": "Dark Hall",
+          "_sample": true
+        }
+      ]
+    },
+
+    {
+      "id": "scene10",
+      "name": "Dark Hall",
+      "_source": "assets/source-panoramas/010.jpg",
+      "panorama": {
+        "type": "equirectangular",
+        "url": "assets/panoramas/equirect/scene10_{z}.jpg",
+        "levels": [{ "width": 1024 }, { "width": 4096 }]
+      },
+      "initialView": { "yaw": -1.6, "pitch": 0, "fov": 1.45 },
+      "hotspots": [
+        {
+          "id": "scene10-to-scene09",
+          "type": "scene",
+          "target": "scene09",
+          "yaw": -2.15,
+          "pitch": 0.25,
+          "label": "Screening Room",
+          "_sample": true
+        },
+        {
+          "id": "scene10-to-scene12",
+          "type": "scene",
+          "target": "scene12",
+          "yaw": 3.05,
+          "pitch": 0.25,
+          "label": "Gallery Passage",
+          "_sample": true
+        }
+      ]
+    },
+
+    {
+      "id": "scene12",
+      "name": "Gallery Passage",
+      "_source": "assets/source-panoramas/012.jpg",
+      "_note": "There is no scene11: the source set has no 011.jpg. Scene ids intentionally match the source file numbers.",
+      "panorama": {
+        "type": "equirectangular",
+        "url": "assets/panoramas/equirect/scene12_{z}.jpg",
+        "levels": [{ "width": 1024 }, { "width": 4096 }]
+      },
+      "initialView": { "yaw": 1.8, "pitch": 0.02, "fov": 1.4 },
+      "hotspots": [
+        {
+          "id": "scene12-to-scene10",
+          "type": "scene",
+          "target": "scene10",
+          "yaw": -2.4,
+          "pitch": 0.25,
+          "label": "Dark Hall",
+          "_sample": true
+        },
+        {
+          "id": "scene12-to-scene14",
+          "type": "scene",
+          "target": "scene14",
+          "yaw": 2.1,
+          "pitch": 0.25,
+          "label": "Projection Room",
+          "_sample": true
+        }
+      ]
+    },
+
+    {
+      "id": "scene13",
+      "name": "Ticket Desk",
+      "_source": "assets/source-panoramas/013.jpg",
+      "panorama": {
+        "type": "equirectangular",
+        "url": "assets/panoramas/equirect/scene13_{z}.jpg",
+        "levels": [{ "width": 1024 }, { "width": 4096 }]
+      },
+      "initialView": { "yaw": 0.3, "pitch": 0.02, "fov": 1.4 },
+      "hotspots": [
+        {
+          "id": "scene13-to-scene07",
+          "type": "scene",
+          "target": "scene07",
+          "yaw": 0.3,
+          "pitch": 0.2,
+          "label": "Exhibition Entrance",
+          "_sample": true
+        },
+        {
+          "id": "scene13-to-scene06",
+          "type": "scene",
+          "target": "scene06",
+          "yaw": -2.65,
+          "pitch": 0.25,
+          "label": "Main Lobby",
+          "_sample": true
+        }
+      ]
+    },
+
+    {
+      "id": "scene14",
+      "name": "Projection Room",
+      "_source": "assets/source-panoramas/014.jpg",
+      "panorama": {
+        "type": "equirectangular",
+        "url": "assets/panoramas/equirect/scene14_{z}.jpg",
+        "levels": [{ "width": 1024 }, { "width": 4096 }]
+      },
+      "initialView": { "yaw": 0, "pitch": 0, "fov": 1.45 },
+      "hotspots": [
+        {
+          "id": "scene14-to-scene12",
+          "type": "scene",
+          "target": "scene12",
+          "yaw": -2.08,
+          "pitch": 0.25,
+          "label": "Gallery Passage",
+          "_sample": true
+        },
+        {
+          "id": "scene14-to-scene15",
+          "type": "scene",
+          "target": "scene15",
+          "yaw": 0.13,
+          "pitch": 0.25,
+          "label": "Video Installation",
+          "_sample": true
+        }
+      ]
+    },
+
+    {
+      "id": "scene15",
+      "name": "Video Installation",
+      "_source": "assets/source-panoramas/015.jpg",
+      "panorama": {
+        "type": "equirectangular",
+        "url": "assets/panoramas/equirect/scene15_{z}.jpg",
+        "levels": [{ "width": 1024 }, { "width": 4096 }]
+      },
+      "initialView": { "yaw": 0.05, "pitch": 0, "fov": 1.4 },
+      "hotspots": [
+        {
+          "id": "scene15-video",
+          "type": "youtube",
+          "videoId": "aqz-KE-bpKQ",
+          "title": "SAMPLE - Installation footage",
+          "yaw": 0.05,
+          "pitch": -0.02,
+          "label": "Play the installation film",
+          "_sample": true,
+          "_note": "Replace videoId with your own 11-character YouTube id."
+        },
+        {
+          "id": "scene15-to-scene14",
+          "type": "scene",
+          "target": "scene14",
+          "yaw": -1.9,
+          "pitch": 0.25,
+          "label": "Projection Room",
+          "_sample": true
+        },
+        {
+          "id": "scene15-to-scene16",
+          "type": "scene",
+          "target": "scene16",
+          "yaw": 2.18,
+          "pitch": 0.25,
+          "label": "Dark Corridor",
+          "_sample": true
+        }
+      ]
+    },
+
+    {
+      "id": "scene16",
+      "name": "Dark Corridor",
+      "_source": "assets/source-panoramas/016.jpg",
+      "panorama": {
+        "type": "equirectangular",
+        "url": "assets/panoramas/equirect/scene16_{z}.jpg",
+        "levels": [{ "width": 1024 }, { "width": 4096 }]
+      },
+      "initialView": { "yaw": 0.05, "pitch": 0.02, "fov": 1.45 },
+      "hotspots": [
+        {
+          "id": "scene16-to-scene15",
+          "type": "scene",
+          "target": "scene15",
+          "yaw": 2.55,
+          "pitch": 0.25,
+          "label": "Video Installation",
+          "_sample": true
+        },
+        {
+          "id": "scene16-to-scene17",
+          "type": "scene",
+          "target": "scene17",
+          "yaw": 0.05,
+          "pitch": 0.25,
+          "label": "Mural Gallery A",
+          "_sample": true
+        }
+      ]
+    },
+
+    {
+      "id": "scene17",
+      "name": "Mural Gallery A",
+      "_source": "assets/source-panoramas/017.jpg",
+      "panorama": {
+        "type": "equirectangular",
+        "url": "assets/panoramas/equirect/scene17_{z}.jpg",
+        "levels": [{ "width": 1024 }, { "width": 4096 }]
+      },
+      "initialView": { "yaw": -0.6, "pitch": 0, "fov": 1.4 },
+      "hotspots": [
+        {
+          "id": "scene17-to-scene16",
+          "type": "scene",
+          "target": "scene16",
+          "yaw": -2.24,
+          "pitch": 0.25,
+          "label": "Dark Corridor",
+          "_sample": true
+        },
+        {
+          "id": "scene17-to-scene18",
+          "type": "scene",
+          "target": "scene18",
+          "yaw": 1.93,
+          "pitch": 0.25,
+          "label": "Mural Gallery B",
+          "_sample": true
+        }
+      ]
+    },
+
+    {
+      "id": "scene18",
+      "name": "Mural Gallery B",
+      "_source": "assets/source-panoramas/018.jpg",
+      "panorama": {
+        "type": "equirectangular",
+        "url": "assets/panoramas/equirect/scene18_{z}.jpg",
+        "levels": [{ "width": 1024 }, { "width": 4096 }]
+      },
+      "initialView": { "yaw": -0.4, "pitch": 0, "fov": 1.4 },
+      "hotspots": [
+        {
+          "id": "scene18-to-scene17",
+          "type": "scene",
+          "target": "scene17",
+          "yaw": -2.24,
+          "pitch": 0.25,
+          "label": "Mural Gallery A",
+          "_sample": true
+        },
+        {
+          "id": "scene18-to-scene19",
+          "type": "scene",
+          "target": "scene19",
+          "yaw": 0.95,
+          "pitch": 0.25,
+          "label": "Mural Gallery C",
+          "_sample": true
+        }
+      ]
+    },
+
+    {
+      "id": "scene19",
+      "name": "Mural Gallery C",
+      "_source": "assets/source-panoramas/019.jpg",
+      "panorama": {
+        "type": "equirectangular",
+        "url": "assets/panoramas/equirect/scene19_{z}.jpg",
+        "levels": [{ "width": 1024 }, { "width": 4096 }]
+      },
+      "initialView": { "yaw": -0.3, "pitch": 0, "fov": 1.4 },
+      "hotspots": [
+        {
+          "id": "scene19-to-scene18",
+          "type": "scene",
+          "target": "scene18",
+          "yaw": -2.08,
+          "pitch": 0.25,
+          "label": "Mural Gallery B",
+          "_sample": true
+        },
+        {
+          "id": "scene19-to-scene06",
+          "type": "scene",
+          "target": "scene06",
+          "yaw": 1.19,
+          "pitch": 0.25,
+          "label": "Exit to Main Lobby",
+          "_sample": true
+        }
+      ]
+    }
+  ]
+}
