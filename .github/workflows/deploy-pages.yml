@@ -1,0 +1,49 @@
+name: Deploy to GitHub Pages
+
+# The tour is a static site with no build step, so this workflow simply
+# publishes the repository as-is. Every push to main redeploys it.
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:        # lets you redeploy by hand from the Actions tab
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# Never let two deploys race; queue them instead of cancelling, so the last
+# push always ends up being the live version.
+concurrency:
+  group: github-pages
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Check out the repository
+        uses: actions/checkout@v4
+
+      - name: Configure Pages
+        uses: actions/configure-pages@v5
+        with:
+          # Turns Pages on automatically the first time, so nobody has to
+          # click through repository Settings.
+          enablement: true
+
+      - name: Upload the site
+        uses: actions/upload-pages-artifact@v3
+        with:
+          # The whole repository. The action already excludes .git and .github.
+          # assets/source-panoramas/ is included deliberately: the originals are
+          # published alongside the tour. Add an exclusion here if that ever
+          # needs to change.
+          path: .
+
+      - name: Deploy
+        id: deployment
+        uses: actions/deploy-pages@v4

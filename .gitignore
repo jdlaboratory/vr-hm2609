@@ -1,0 +1,16 @@
+# Operating system and editor noise
+.DS_Store
+Thumbs.db
+desktop.ini
+*.swp
+
+# Python bytecode from tools/
+__pycache__/
+*.py[cod]
+
+# Only relevant if dev tooling is ever added; the tour itself has no packages
+node_modules/
+
+# NOTE: assets/source-panoramas/ is tracked on purpose. The originals are the
+# master copies that tools/make-web-equirect.ps1 and tools/make-multires.py
+# derive from, and they are published with the site.

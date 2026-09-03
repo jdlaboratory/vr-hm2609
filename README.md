@@ -506,6 +506,27 @@ every derived format is regenerated from it.
 
 The site is fully static. There is nothing to build and no server-side code.
 
+### GitHub Pages — already set up
+
+**Live site: <https://jdlaboratory.github.io/vr-hm2609/>**
+
+`.github/workflows/deploy-pages.yml` publishes the repository on every push to `main`.
+Nothing to configure — the workflow turns Pages on by itself the first time it runs. To
+redeploy without changing anything, open the **Actions** tab and run *Deploy to GitHub
+Pages* manually.
+
+The whole repository is published, `assets/source-panoramas/` included, so the ~28 MB of
+originals are downloadable from the live site too. To stop publishing them later, add an
+exclusion to the upload step in the workflow.
+
+Because the site lives under `/vr-hm2609/` rather than at a domain root, **every path in
+the project is relative** — `css/style.css`, `assets/panoramas/…`, `config/tour.json`.
+Keep it that way: a leading `/` in any path would break the deployed site while still
+working locally. The same trap applies to capitalisation, since GitHub Pages is
+case-sensitive and Windows is not.
+
+### Other hosts
+
 **Cloudflare Pages** — connect the repo, set *Build command* to none/empty and
 *Build output directory* to `/`. Or drag the folder into the dashboard.
 

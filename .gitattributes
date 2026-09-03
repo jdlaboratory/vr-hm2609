@@ -1,2 +1,33 @@
-# Auto detect text files and perform LF normalization
+# Line endings are load-bearing in this project:
+#   * cmd.exe is unreliable with LF-only .bat files
+#   * bash fails outright on scripts containing carriage returns
+# core.autocrlf differs between machines, so pin the result explicitly here
+# instead of trusting whatever each clone happens to be configured with.
+
 * text=auto
+
+# Windows scripts must arrive with CRLF
+*.bat       text eol=crlf
+*.cmd       text eol=crlf
+*.ps1       text eol=crlf
+
+# Everything Unix-side must arrive with LF
+*.command   text eol=lf
+*.sh        text eol=lf
+*.py        text eol=lf
+*.js        text eol=lf
+*.mjs       text eol=lf
+*.json      text eol=lf
+*.html      text eol=lf
+*.css       text eol=lf
+*.svg       text eol=lf
+*.md        text eol=lf
+*.yml       text eol=lf
+*.yaml      text eol=lf
+
+# Panoramas and tiles: never inspect or transform
+*.jpg       binary
+*.jpeg      binary
+*.png       binary
+*.webp      binary
+*.ico       binary
