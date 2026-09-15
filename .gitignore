@@ -14,3 +14,8 @@ node_modules/
 # NOTE: assets/source-panoramas/ is tracked on purpose. The originals are the
 # master copies that tools/make-web-equirect.ps1 and tools/make-multires.py
 # derive from, and they are published with the site.
+
+# The editor's save endpoint keeps one undo copy next to the config, and
+# writes through a temporary file. Neither belongs in the repository.
+config/tour.json.bak
+config/tour.json.tmp

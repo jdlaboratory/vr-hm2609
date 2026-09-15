@@ -11,7 +11,8 @@
 #
 #      chmod +x start-macos.command
 #
-#  Pass --edit to open the hotspot editor instead:
+#  Pass --edit to open the editor instead. That also lets the
+#  editor save your changes back into config/tour.json:
 #      ./start-macos.command --edit
 # ===================================================================
 

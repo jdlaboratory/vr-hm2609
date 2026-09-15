@@ -5,7 +5,8 @@ plain HTML, CSS and JavaScript. No build step, no framework, no backend — copy
 onto any static host and it runs.
 
 The whole tour is described by one file: **`config/tour.json`**. Adding a room, connecting
-two rooms or adding a video never requires touching the JavaScript.
+two rooms, placing a pin on the floor plan or adding a video never requires touching the
+JavaScript — and the built-in editor writes that file for you.
 
 ---
 
@@ -14,8 +15,8 @@ two rooms or adding a video never requires touching the JavaScript.
 1. [Quick start](#1-quick-start)
 2. [Project structure](#2-project-structure)
 3. [The panoramas in this project](#3-the-panoramas-in-this-project)
-4. [Editing the tour](#4-editing-the-tour) — scenes, hotspots, videos, info panels
-5. [The hotspot editor (`?edit=1`)](#5-the-hotspot-editor-edit1)
+4. [Editing the tour](#4-editing-the-tour) — scenes, hotspots, videos, info panels, minimap
+5. [The editor (`?edit=1`)](#5-the-editor-edit1)
 6. [Settings reference](#6-settings-reference)
 7. [Replacing the sample assets](#7-replacing-the-sample-assets)
 8. [Equirectangular vs multiresolution](#8-equirectangular-vs-multiresolution)
@@ -58,13 +59,19 @@ dependencies.
 Both launchers pass their arguments straight through:
 
 ```bash
-start-windows.bat --edit          # open directly into the hotspot editor
+start-windows.bat --edit          # open directly into the editor, and let it save
 start-windows.bat --lan           # also reachable from a phone on the same Wi-Fi
 start-windows.bat --port 9000     # choose the port
 start-windows.bat --no-browser    # do not open a browser
 
 ./start-macos.command --edit      # same flags on macOS
 ```
+
+`--edit` does two things: it opens the browser at `?edit=1`, and it lets the local server
+accept `PUT /api/tour-config`, which is how the editor's **저장 (Save)** button writes
+`config/tour.json`. Without `--edit` the server is strictly read-only, so nothing can
+overwrite the tour by accident. Combining `--edit` with `--lan` exposes that write endpoint
+to everyone on the network — fine at a desk, not on a café Wi-Fi.
 
 `--lan` is the quick way to check the tour on a real phone: it prints an address like
 `http://192.168.0.14:8000/` that you type into the phone's browser while on the same Wi-Fi.
@@ -90,7 +97,7 @@ Then open **<http://localhost:8000/>**.
 | `http://localhost:8000/` | Opens the default scene |
 | `http://localhost:8000/?scene=scene02` | Opens a specific scene |
 | `http://localhost:8000/#scene02` | Same, using a hash |
-| `http://localhost:8000/?edit=1` | Opens the tour **plus the hotspot editor** |
+| `http://localhost:8000/?edit=1` | Opens the tour **plus the editor** |
 
 An unknown scene id falls back to the default scene and logs a warning — it never breaks
 the page.
@@ -110,13 +117,15 @@ the page.
 │   ├── config.js               loads + validates tour.json (no Marzipano, no DOM)
 │   ├── tour.js                 THE ONLY FILE THAT CALLS MARZIPANO
 │   ├── hotspots.js             builds the DOM element for each hotspot type
+│   ├── minimap.js              floor plan + pins, bottom right
 │   ├── modal.js                accessible dialog + YouTube embed + info content
 │   ├── ui.js                   scene title, scene menu, fullscreen, loader, errors
 │   └── editor.js               ?edit=1 developer tool
 ├── config/
 │   └── tour.json               ← the entire tour lives here
 ├── assets/
-│   ├── icons/                  arrow.svg, video.svg, info.svg (optional overrides)
+│   ├── icons/                  pin.svg + pin-active.svg (minimap), optional hotspot icons
+│   ├── source-map/             floor plan used by the minimap
 │   ├── source-panoramas/       ORIGINAL 8192×4096 photos — never modified
 │   └── panoramas/
 │       ├── equirect/           web-sized copies the tour actually loads
@@ -142,46 +151,59 @@ to `tour.js` through a handful of methods.
 
 ## 3. The panoramas in this project
 
-`assets/source-panoramas/` holds **18** original photos, `001.jpg`–`010.jpg` and
-`012.jpg`–`019.jpg`. There is no `011.jpg` in the source set, so there is no `scene11`;
-scene ids deliberately mirror the source file numbers so the mapping stays obvious.
+`assets/source-panoramas/` holds **26** original photos: `001.jpg`–`024.jpg`, plus `009a.jpg`
+and `011b.jpg` for second viewpoints inside rooms that needed two. Scene ids mirror the file
+names, letter suffixes included, so the mapping stays obvious: `006.jpg` → `scene06`,
+`011b.jpg` → `scene11b`.
 
 All originals are 8192 × 4096 equirectangular JPEGs. **They are never read by the website
 and are never modified** — they are the master copies that the two scripts in `tools/`
 derive from.
 
-| Scene id | Name | Source |
-| --- | --- | --- |
-| `scene01` | Upper Landing | `001.jpg` |
-| `scene02` | Café | `002.jpg` |
-| `scene03` | Amenities Corridor | `003.jpg` |
-| `scene04` | Nursing Room | `004.jpg` |
-| `scene05` | Lockers & Reading Nook | `005.jpg` |
-| `scene06` | Main Lobby *(default)* | `006.jpg` |
-| `scene07` | Exhibition Entrance | `007.jpg` |
-| `scene08` | Intro Projection | `008.jpg` |
-| `scene09` | Screening Room | `009.jpg` |
-| `scene10` | Dark Hall | `010.jpg` |
-| `scene12` | Gallery Passage | `012.jpg` |
-| `scene13` | Ticket Desk | `013.jpg` |
-| `scene14` | Projection Room | `014.jpg` |
-| `scene15` | Video Installation | `015.jpg` |
-| `scene16` | Dark Corridor | `016.jpg` |
-| `scene17` | Mural Gallery A | `017.jpg` |
-| `scene18` | Mural Gallery B | `018.jpg` |
-| `scene19` | Mural Gallery C | `019.jpg` |
+The tour is ordered as a walk: arrive in the lobby, take in the café and the amenities, pass
+the ticket gate into the B1 exhibition, work through the multi hall and the mural corridors,
+and come out at the lifts.
 
-> **The scene names and the way the scenes connect are a sensible first guess, not surveyed
-> fact.** Every hotspot in `tour.json` is marked `"_sample": true` because its yaw/pitch was
-> estimated from the photos rather than measured. Rename scenes freely, and use the editor
-> (section 5) to put each arrow exactly on its doorway.
+| Scene id | Name | Source | Minimap x, y |
+| --- | --- | --- | --- |
+| `scene01` | 계단 상부 라운지 | `001.jpg` | 0.29, 0.86 |
+| `scene06` | 중앙 로비 *(default)* | `006.jpg` | 0.46, 0.72 |
+| `scene02` | 카페 | `002.jpg` | 0.63, 0.86 |
+| `scene05` | 물품보관함 라운지 | `005.jpg` | 0.56, 0.78 |
+| `scene03` | 편의시설 복도 | `003.jpg` | 0.8, 0.85 |
+| `scene04` | 수유실 | `004.jpg` | 0.76, 0.79 |
+| `scene07` | 전시 입구 | `007.jpg` | 0.4, 0.66 |
+| `scene12` | 티켓 게이트 | `012.jpg` | 0.5, 0.63 |
+| `scene08` | 멀티홀 인트로 | `008.jpg` | 0.46, 0.55 |
+| `scene23` | 멀티홀 중앙 | `023.jpg` | 0.41, 0.46 |
+| `scene09` | 영상 코너 | `009.jpg` | 0.34, 0.51 |
+| `scene09a` | 영상 코너 안쪽 | `009a.jpg` | 0.29, 0.46 |
+| `scene24` | 멀티홀 서편 | `024.jpg` | 0.33, 0.37 |
+| `scene10` | 멀티홀 북편 | `010.jpg` | 0.25, 0.33 |
+| `scene11` | 미디어 아카이브 | `011.jpg` | 0.19, 0.41 |
+| `scene11b` | 아카이브 안쪽 | `011b.jpg` | 0.175, 0.31 |
+| `scene13` | 암막 영상실 | `013.jpg` | 0.095, 0.55 |
+| `scene14` | 영상 복도 | `014.jpg` | 0.095, 0.42 |
+| `scene15` | 연결 복도 | `015.jpg` | 0.095, 0.28 |
+| `scene16` | 벽화 갤러리 A | `016.jpg` | 0.17, 0.145 |
+| `scene17` | 벽화 갤러리 B | `017.jpg` | 0.31, 0.145 |
+| `scene18` | 벽화 갤러리 C | `018.jpg` | 0.45, 0.145 |
+| `scene19` | 벽화 갤러리 D | `019.jpg` | 0.59, 0.145 |
+| `scene20` | 퍼플 갤러리 | `020.jpg` | 0.78, 0.16 |
+| `scene21` | 상영실 | `021.jpg` | 0.89, 0.4 |
+| `scene22` | 엘리베이터 홀 | `022.jpg` | 0.9, 0.87 |
+
+> **Scene names, connections and positions are a careful first pass, not surveyed fact.**
+> The yaw/pitch of every arrow and every minimap coordinate was estimated from the photos
+> and the floor plan rather than measured. Walk the tour with `?edit=1`, drag whatever sits
+> wrong, and press 저장 — see [section 5](#5-the-editor-edit1).
 
 ---
 
 ## 4. Editing the tour
 
 Everything below happens in `config/tour.json`. It is ordinary JSON: **no comments, no
-trailing commas.** Keys beginning with `_` (like `_note`, `_sample`, `_source`) are ignored
+trailing commas.** Keys beginning with `_` (like `_note`, `_source`) are ignored
 by the app, so you can leave notes for yourself there.
 
 Angles are in **radians**:
@@ -192,7 +214,7 @@ Angles are in **radians**:
 | `pitch` | up / down. `0` is the horizon. **Positive is DOWN**, negative is up. |
 | `fov` | vertical field of view. `1.4` ≈ 80°. Smaller = zoomed in. |
 
-You never have to work these out by hand — see [the editor](#5-the-hotspot-editor-edit1).
+You never have to work these out by hand — see [the editor](#5-the-editor-edit1).
 
 ### 4.1 Adding a panorama
 
@@ -204,7 +226,9 @@ You never have to work these out by hand — see [the editor](#5-the-hotspot-edi
    ```
 
    This writes `sceneNN_0.jpg` (1024 px preview) and `sceneNN_1.jpg` (4096 px) into
-   `assets/panoramas/equirect/`, derived from the file number: `020.jpg` → `scene20`.
+   `assets/panoramas/equirect/`, derived from the file name: `020.jpg` → `scene20`,
+   `020b.jpg` → `scene20b`. A letter suffix is how you add a second viewpoint in a room
+   you have already numbered.
 3. Add the scene to `tour.json` (next step).
 
 ### 4.2 Adding a scene
@@ -214,19 +238,23 @@ Append an object to the `"scenes"` array:
 ```json
 {
   "id": "scene20",
-  "name": "Terrace",
+  "name": "테라스",
   "panorama": {
     "type": "equirectangular",
     "url": "assets/panoramas/equirect/scene20_{z}.jpg",
     "levels": [{ "width": 1024 }, { "width": 4096 }]
   },
   "initialView": { "yaw": 0, "pitch": 0, "fov": 1.4 },
+  "map": { "x": 0.5, "y": 0.5 },
   "hotspots": []
 }
 ```
 
 `{z}` is the resolution level; Marzipano fills it in with `0` for the small preview and `1`
 for the full image, so the visitor sees something immediately while the large file arrives.
+
+`map` is where the scene's pin sits on the minimap — see [4.7](#47-the-minimap). Leave it
+out and the scene simply has no pin.
 
 Reload the page — the scene appears in the scene menu straight away.
 
@@ -243,7 +271,7 @@ In `scene06`:
   "target": "scene20",
   "yaw": 1.25,
   "pitch": 0.25,
-  "label": "Terrace"
+  "label": "테라스"
 }
 ```
 
@@ -256,7 +284,7 @@ And the return trip, in `scene20`:
   "target": "scene06",
   "yaw": -1.9,
   "pitch": 0.25,
-  "label": "Main Lobby"
+  "label": "중앙 로비"
 }
 ```
 
@@ -311,54 +339,132 @@ this field is shown literally rather than executed. `image` is optional.
 ### 4.6 Changing the initial camera direction
 
 `initialView` is where the camera points when a scene opens. Open `?edit=1`, drag until the
-view looks right, press **Copy current view**, and paste the result over `initialView`.
+view looks right and press **시작 화면으로 지정 (Use current view)**.
+
+### 4.7 The minimap
+
+The floor plan in the bottom-right corner is driven by `settings.minimap` plus one `map`
+block per scene. Every scene with a `map` gets a pin; the scene you are standing in swaps to
+the highlight pin and clicking any pin jumps to that scene.
+
+```json
+"minimap": {
+  "enabled": true,
+  "image": "assets/source-map/hm_map.png",
+  "title": "B1 안내도",
+  "pin": "assets/icons/pin.svg",
+  "pinActive": "assets/icons/pin-active.svg",
+  "width": 300,
+  "startCollapsed": false
+}
+```
+
+| Key | Default | Meaning |
+| --- | --- | --- |
+| `enabled` | `true` | `false` hides the minimap without deleting the coordinates. |
+| `image` | — | **Required.** Floor plan, any web image format. Without it the minimap turns itself off with a console warning. |
+| `title` | `""` | Caption on the panel header. An empty string leaves just the collapse chevron. |
+| `pin` | `assets/icons/pin.svg` | Pin for every scene. |
+| `pinActive` | `assets/icons/pin-active.svg` | Pin for the scene currently on screen. |
+| `width` | `260` | Panel width in px, clamped to 140–520. Narrow screens cap it further. |
+| `startCollapsed` | `false` | Open the tour with the plan folded away. |
+
+The two pins are separate SVG files rather than one file recoloured in CSS, so the highlight
+colour is a decision you make in `assets/icons/` — swap in your own artwork and nothing in
+the code needs to know. Keep both files the same size and shape: the pin's **tip** is what
+lands on the coordinate, so a taller replacement will appear to sit somewhere else.
+
+A scene's position is a fraction of the image, not a pixel:
+
+```json
+"map": { "x": 0.46, "y": 0.72 }
+```
+
+`x` runs 0 (left edge) → 1 (right edge), `y` runs 0 (top) → 1 (bottom). Fractions mean the
+coordinates survive replacing the floor plan with a larger export. You do not have to work
+them out: in `?edit=1`, drag the pin or click the plan.
 
 ---
 
-## 5. The hotspot editor (`?edit=1`)
+## 5. The editor (`?edit=1`)
 
 Add `?edit=1` to the URL — for example `http://localhost:8000/?edit=1` — and a panel appears
 in the top-left. **It is never present without that query parameter**, so production
 visitors cannot see it.
 
-The panel shows the live camera as you drag:
+The editor changes the tour live: drag an arrow and it moves under your cursor, drag a pin
+and the floor plan updates. Nothing is written to disk until you press **저장 (Save)**.
+
+### What the panel does
 
 ```
-Scene   scene06
-Yaw     0.5    (28.6°)
-Pitch   0.02   (1.1°)
-FOV     1.385  (79.3°)
+편집기                     ← collapse with the – button
+  장면   scene06           ← live camera readout, updates as you drag
+  Yaw    0.25  (14.3°)
+  Pitch  0.03  (1.7°)
+  FOV    1.28  (73.4°)
+  [시작 화면으로 지정]  [되돌리기]
+
+이동 포인트                 3
+  카페                     카페        ← click to select; hover to find it on screen
+  계단 위 라운지            계단 상부 라운지
+  전시 입구                 전시 입구
+  [+ 이동 포인트 추가]
+  종류 / 대상 장면 / 라벨    ← the selected point's fields
+  yaw -1.4 · pitch 0.26  (-80.2° / 14.9°)
+  [화면에서 위치 지정]  [삭제]
+
+미니맵 위치
+  x 0.46 · y 0.72
+  [핀 없애기]
+
+[저장]  [JSON 복사]  [내려받기]
 ```
 
-### Getting a hotspot's yaw and pitch
+### Moving a navigation point
 
-1. Drag the panorama until the doorway (or screen, or object) is visible.
-2. Click **Pick position** — the cursor becomes a crosshair.
-3. Click the exact spot in the panorama. The captured coordinates appear immediately:
-   `yaw 0.82 · pitch -0.103 (47° / -5.9°)`.
-4. Choose the **Type** — `Scene`, `YouTube video` or `Info panel`. The form shows only the
-   fields that type needs (target scene dropdown / video id / title + content).
-5. Fill in the label and the type-specific fields.
-6. The JSON box updates as you type:
+**Drag it.** With the editor open every hotspot is draggable: press on the arrow, move, let
+go. It follows the pointer across the panorama and the yaw/pitch readout updates as it goes.
+A drag never triggers the arrow's own click, so you cannot accidentally navigate away.
 
-   ```json
-   {
-     "id": "scene06-scene-1",
-     "type": "scene",
-     "target": "scene02",
-     "yaw": 0.82,
-     "pitch": -0.103,
-     "label": "Café"
-   }
-   ```
+Three other ways, for when dragging is awkward:
 
-7. Press **Copy JSON**, paste it into that scene's `"hotspots"` array in `config/tour.json`,
-   and reload. The new hotspot is there.
+| Way | When it helps |
+| --- | --- |
+| **화면에서 위치 지정** then click the spot | The target is far from the arrow's current position |
+| **Arrow keys** (`Shift` for bigger steps) | Final 1–2° of alignment. Press `Esc` to deselect and give the arrow keys back to the camera |
+| Edit `yaw`/`pitch` in `tour.json` | You already know the numbers |
 
-**Copy current view** does the same thing for `initialView`. **Reset view** returns the
-camera to the scene's configured `initialView`.
+### Adding, retargeting and deleting
 
-The editor never writes to `tour.json`; you always paste the result yourself.
+**+ 이동 포인트 추가** drops a new point in the middle of the current view, aimed at a scene
+this one does not link to yet, and selects it. Set **대상 장면** (which scene it leads to)
+and **라벨** (the caption on hover); both take effect immediately. **종류** switches a point
+between a scene jump, a YouTube modal and an info panel. **삭제** removes the selected point.
+
+### Moving a minimap pin
+
+Drag the pin on the floor plan, or click any empty part of the plan to move the **current**
+scene's pin there. `핀 없애기` removes the pin, leaving the scene reachable only from the
+scene menu and its arrows. The readout shows the stored fraction, e.g. `x 0.46 · y 0.72`.
+
+### Saving
+
+| Button | What happens |
+| --- | --- |
+| **저장** | `PUT`s the whole file to the local server, which writes `config/tour.json` and keeps the previous version as `config/tour.json.bak` |
+| **JSON 복사** | Copies the file to the clipboard |
+| **내려받기** | Downloads `tour.json` for you to drop into `config/` yourself |
+
+**저장 only works on a server started with `--edit`** (`tools/serve.py --edit`, or
+`start-windows.bat --edit`). Any other server — including GitHub Pages — refuses the write,
+and the editor says so and points you at 내려받기. Before writing, it checks that no scene
+arrow points at a missing scene and no video hotspot is missing its id, because either would
+silently vanish on the next reload; if one does, it names the problem and saves nothing.
+
+The saved file is the file you had, with your edits in it: key order, `_source` notes,
+comments in `_README` and the hand-tuned formatting all survive. A save that changes one
+arrow produces a two-line diff.
 
 ---
 
@@ -378,24 +484,34 @@ The `"settings"` block at the top of `tour.json`:
 | `transitionDurationMs` | `500` | Cross-fade between scenes. `0` disables it. |
 | `updateUrlOnSceneChange` | `true` | Keep `?scene=` in the address bar so any view is linkable. |
 | `minFov` / `maxFov` | `0.45` / `1.85` | Zoom limits in radians. |
+| `minimap` | *(none)* | Floor plan in the bottom-right. Its own keys are in [4.7](#47-the-minimap); omit the block entirely for no minimap. |
 
 ---
 
 ## 7. Replacing the sample assets
 
-Three things in this repository are placeholders:
+Two things in this repository still want a human eye:
 
 | What | Where | Replace with |
 | --- | --- | --- |
-| Sample video id `aqz-KE-bpKQ` | `scene08`, `scene15` in `tour.json` | your own YouTube id |
-| Sample info text (`"SAMPLE - …"`) | `scene01`, `scene07` | your own copy |
-| Estimated hotspot positions (`"_sample": true`) | every hotspot | positions picked with `?edit=1` |
+| Estimated arrow positions | every `yaw`/`pitch` in `tour.json` | positions dragged in `?edit=1` |
+| Estimated minimap positions | every `map` block | pins dragged onto the floor plan |
 
-Search `tour.json` for `SAMPLE` and `_sample` to find all of them.
+There is no placeholder video or info text left in `tour.json` — the tour is 26 scene-to-scene
+links and nothing else. Add videos and info panels as you need them ([4.4](#44-adding-a-youtube-hotspot),
+[4.5](#45-adding-an-info-hotspot)).
 
-The hotspot icons in `assets/icons/` are **not** used by default — the icons are inlined in
-`js/hotspots.js` so they can inherit colour and cost no extra request. To use a custom
-image for one hotspot, add `"icon": "assets/icons/my-icon.svg"` to it.
+The **hotspot** icons in `assets/icons/` (`arrow.svg`, `video.svg`, `info.svg`) are **not**
+used by default — those icons are inlined in `js/hotspots.js` so they inherit colour and cost
+no extra request. To use a custom image for one hotspot, add
+`"icon": "assets/icons/my-icon.svg"` to it. The **minimap** pins are the opposite: `pin.svg`
+and `pin-active.svg` are real files, loaded as images, precisely so you can restyle them
+without touching code.
+
+The floor plan is used exactly as it sits in `assets/source-map/` — it is already web-sized,
+so unlike the panoramas it needs no derived copy. Swapping in a different plan means dropping
+the file in, pointing `settings.minimap.image` at it, and re-placing the pins in `?edit=1`
+(the stored fractions only stay right if the new plan frames the building the same way).
 
 The favicon is an inline SVG in `index.html`; replace it with a real file if you prefer.
 
@@ -442,8 +558,8 @@ A 2:1 aspect ratio is required. Anything else will look stretched.
 ```bash
 pip install pillow numpy
 
-python tools/make-multires.py              # all 18 panoramas
-python tools/make-multires.py 006 013      # just these two
+python tools/make-multires.py              # all 26 panoramas
+python tools/make-multires.py 006 011b     # just these two
 python tools/make-multires.py --face-size 1024   # smaller/faster
 ```
 
@@ -565,8 +681,8 @@ directory listings are not required.
 
 ## 11. Testing checklist
 
-This build was driven through headless Chrome; **45/45 checks passed with zero console
-errors, warnings, or failed requests**. To re-check by hand after your edits:
+The panorama rebuild, the minimap and every editing interaction below were driven through
+headless Chrome against this build and passed. To re-check by hand after your edits:
 
 | | Check | Expected |
 | --- | --- | --- |
@@ -578,13 +694,18 @@ errors, warnings, or failed requests**. To re-check by hand after your edits:
 | F | Click a video hotspot | modal opens with a 16:9 player |
 | G | Close the modal | **audio stops immediately** (the iframe is removed) |
 | H | Press `Esc` | modal closes, focus returns to the hotspot |
-| I | Narrow the window to 390 px | no horizontal scrollbar, modal still fits |
-| J | Add `?edit=1` | editor panel appears (and never appears without it) |
-| K | Pick position → click | yaw/pitch captured |
-| L | Copy JSON | valid, complete hotspot object |
-| M | `?scene=nonsense` | default scene loads, warning in console, no crash |
-| N | Break a `videoId` in `tour.json` | that hotspot disappears with a warning; tour still works |
-| O | Browser without fullscreen | button is hidden, not broken |
+| I | Narrow the window to 390 px | no horizontal scrollbar, minimap shrinks, modal still fits |
+| J | Minimap | one pin per placed scene; the open scene's pin is the highlight colour |
+| K | Click another pin | that scene loads and its pin becomes the highlighted one |
+| L | Collapse the minimap | plan folds away, chevron rotates, tour unaffected |
+| M | Add `?edit=1` | editor panel appears (and never appears without it) |
+| N | Drag an arrow | it follows the pointer, yaw/pitch updates, and it does **not** navigate |
+| O | Drag a minimap pin | pin moves, `미니맵 위치` readout updates |
+| P | 저장 on a `--edit` server | `config/tour.json` rewritten, `.bak` kept, diff limited to what you changed |
+| Q | 저장 on any other server | refused with a message, nothing lost — 내려받기 still works |
+| R | `?scene=nonsense` | default scene loads, warning in console, no crash |
+| S | Break a `videoId` in `tour.json` | that hotspot disappears with a warning; tour still works |
+| T | Browser without fullscreen | button is hidden, not broken |
 
 Accessibility: hotspots are real `<button>`s with `aria-label`s and are keyboard reachable;
 the modal is a labelled `aria-modal` dialog with a focus trap and focus restoration; the
@@ -594,18 +715,22 @@ hotspot pulse and all transitions are disabled under `prefers-reduced-motion`.
 
 ## 12. Known limitations and TODOs
 
-- **Hotspot positions are estimates.** Every hotspot is marked `"_sample": true`. They are
-  placed plausibly, not accurately, and the scene-to-scene connections are a guess at the
-  building's layout. Walk the tour with `?edit=1` and re-pick each one — this is the main
-  outstanding task.
-- **Scene names are inferred from the photos** (Café, Nursing Room, Mural Gallery A…).
-  Rename them to whatever the client calls these spaces.
-- **There is no `scene11`.** The source set has no `011.jpg`. If that photo exists, drop it
-  in and add the scene.
+- **Arrow and pin positions are estimates.** Each arrow was aimed at the doorway visible in
+  its photo and each pin dropped on the room it looked like, but nothing was surveyed. Walk
+  the tour with `?edit=1`, drag what sits wrong and press 저장 — this is the main outstanding
+  task, and the editor exists to make it quick.
+- **Scene names are inferred from the photos** (카페, 수유실, 벽화 갤러리 A…). Rename them to
+  whatever the client calls these spaces.
+- **The floor plan covers B1 only.** `scene01` and `scene07` are around the stairs at the
+  level above, and sit on the stair block of the plan for want of anywhere better. A second
+  plan per floor would be the honest fix; `settings.minimap` currently takes one image.
+- **26 pins on one small plan is dense.** In the multi hall the pins nearly touch. Fine to
+  read, but if the tour grows, consider a larger `width` or grouping viewpoints.
 - **Still on equirectangular.** Working and fast, but capped at 4096 px. Run
   `tools/make-multires.py` before launch to use the full 8192 px source detail — see
   section 9.
-- **Sample video and info text** must be replaced (section 7).
+- **No videos or info panels yet.** The tour is navigation only; both hotspot types still
+  work and are documented in 4.4 and 4.5.
 - **No preloading of the next scene.** Marzipano loads a panorama when you arrive. A
   neighbour-preloading pass would make navigation feel instant, at the cost of bandwidth on
   mobile. Deliberately left out.

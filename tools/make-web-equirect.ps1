@@ -13,7 +13,8 @@
         assets/panoramas/equirect/sceneNN_0.jpg     1024 x 512   loads first
         assets/panoramas/equirect/sceneNN_1.jpg     4096 x 2048  full quality
 
-    Scene ids follow the source file numbers: 006.jpg -> scene06.
+    Scene ids follow the source file numbers, letter suffixes included:
+        006.jpg -> scene06        011b.jpg -> scene11b
 
     Usage:
         pwsh tools/make-web-equirect.ps1
@@ -47,8 +48,13 @@ $sources = Get-ChildItem -Path $sourceDir -Filter '*.jpg' | Sort-Object Name
 Write-Host "Converting $($sources.Count) panorama(s) into $outputDir"
 
 foreach ($source in $sources) {
-    $number = [int]$source.BaseName
-    $sceneId = 'scene{0:D2}' -f $number
+    # Source file names are a number with an optional letter suffix for extra
+    # positions shot in the same area: 006.jpg -> scene06, 011b.jpg -> scene11b.
+    if ($source.BaseName -notmatch '^(\d+)([A-Za-z]*)$') {
+        Write-Warning "Skipping '$($source.Name)': name is not <number>[letter]."
+        continue
+    }
+    $sceneId = 'scene{0:D2}{1}' -f [int]$Matches[1], $Matches[2].ToLower()
 
     $full    = Join-Path $outputDir "${sceneId}_1.jpg"
     $preview = Join-Path $outputDir "${sceneId}_0.jpg"

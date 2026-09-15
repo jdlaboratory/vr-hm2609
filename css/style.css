@@ -338,6 +338,139 @@ body.is-fullscreen .btn .icon-exit-fs { display: block; }
 
 @keyframes fade-in { from { opacity: 0; } to { opacity: 1; } }
 
+/* ----------------------------------------------------------------- minimap */
+/* Bottom-right floor plan. Sits above the UI layer but below the scene menu,
+   which can grow tall enough to reach this corner. */
+
+.minimap {
+  position: fixed;
+  right: calc(16px + var(--safe-right));
+  bottom: calc(16px + var(--safe-bottom));
+  z-index: 25;
+  width: min(var(--minimap-width, 260px), calc(100vw - 32px));
+  overflow: hidden;
+  color: var(--chrome-text);
+  background: var(--chrome-bg-hover);
+  border: 1px solid var(--chrome-border);
+  border-radius: var(--radius-lg);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  box-shadow: 0 6px 26px rgba(0, 0, 0, 0.34);
+}
+
+.minimap-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  width: 100%;
+  min-height: 34px;
+  padding: 7px 10px;
+  font-size: 0.75rem;
+  letter-spacing: 0.02em;
+  color: var(--chrome-text-dim);
+  background: transparent;
+  border: 0;
+  cursor: pointer;
+}
+.minimap-toggle:hover { color: var(--chrome-text); }
+.minimap-toggle:focus-visible { outline: 2px solid #fff; outline-offset: -2px; }
+.minimap-toggle svg {
+  flex: none;
+  width: 16px; height: 16px;
+  transition: transform var(--speed) var(--ease);
+}
+.minimap.is-collapsed .minimap-toggle svg { transform: rotate(-90deg); }
+
+.minimap-title {
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+/* Without a title the toggle would be a lone chevron floating left. */
+.minimap-title[hidden] + svg { margin-left: auto; }
+
+.minimap-body { padding: 0 8px 8px; }
+
+.minimap-plate {
+  position: relative;
+  overflow: hidden;
+  border-radius: var(--radius);
+  /* The floor plan is a line drawing on a translucent ground; give it an
+     opaque plate so the panorama does not show through the rooms. */
+  background: #fff;
+}
+
+.minimap-image { display: block; width: 100%; height: auto; }
+
+.minimap-pins { position: absolute; inset: 0; }
+
+.minimap-pin {
+  position: absolute;
+  /* Deliberately small: a two dozen scene tour puts a lot of pins on one plan,
+     and the plan has to stay readable underneath them. */
+  width: 15px;
+  height: 20px;
+  padding: 0;
+  margin: 0;
+  background: transparent;
+  border: 0;
+  cursor: pointer;
+  /* left/top are set from the scene's map coordinate; the pin's tip, not its
+     box, is what lands on that point. */
+  transform: translate(-50%, -100%);
+  transition: transform var(--speed) var(--ease);
+}
+/* The pin is far smaller than a fingertip. Grow the hit area, not the art. */
+.minimap-pin::before {
+  content: "";
+  position: absolute;
+  inset: -11px -13px -8px;
+}
+.minimap-pin img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.35));
+}
+.minimap-pin:hover { z-index: 3; transform: translate(-50%, -100%) scale(1.25); }
+.minimap-pin:focus-visible { outline: 2px solid #1f6feb; outline-offset: 2px; border-radius: 3px; }
+
+.minimap-pin.is-active {
+  z-index: 2;
+  transform: translate(-50%, -100%) scale(1.3);
+}
+
+.minimap-pin-label {
+  position: absolute;
+  left: 50%;
+  bottom: calc(100% + 4px);
+  transform: translateX(-50%);
+  padding: 3px 7px;
+  white-space: nowrap;
+  font-size: 0.6875rem;
+  color: #fff;
+  background: rgba(18, 18, 22, 0.86);
+  border-radius: var(--radius);
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity var(--speed) var(--ease), visibility var(--speed);
+  pointer-events: none;
+}
+.minimap-pin:hover .minimap-pin-label,
+.minimap-pin:focus-visible .minimap-pin-label {
+  opacity: 1;
+  visibility: visible;
+}
+@media (hover: none) {
+  .minimap-pin-label { display: none; }
+}
+
+/* Editor mode: drag a pin, or click bare floor plan to place the open scene. */
+.minimap.is-editable .minimap-plate { cursor: crosshair; }
+.minimap.is-editable .minimap-pin { cursor: grab; }
+.minimap.is-editable .minimap-pin.is-dragging { cursor: grabbing; transition: none; }
+
 /* ------------------------------------------------------------------ loader */
 
 .loader {
@@ -600,23 +733,74 @@ body.modal-open .ui { visibility: hidden; }
 }
 .editor-row select option { color: #111; }
 
-.editor-json {
-  width: 100%;
-  padding: 8px;
-  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
-  font-size: 11px;
-  line-height: 1.5;
-  color: #cfe9ff;
-  background: rgba(0, 0, 0, 0.5);
-  border: 1px solid rgba(255, 255, 255, 0.16);
-  border-radius: var(--radius);
-  resize: vertical;
+.editor-section-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+  margin-top: 2px;
 }
+.editor-count {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  color: rgba(255, 255, 255, 0.45);
+}
+
+/* The scene's navigation points. Kept short: past about eight per scene the
+   panorama itself is the better place to pick one. */
+.editor-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  max-height: 148px;
+  overflow-y: auto;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: var(--radius);
+}
+.editor-list-item {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+  width: 100%;
+  padding: 7px 9px;
+  text-align: left;
+  color: rgba(255, 255, 255, 0.78);
+  background: transparent;
+  border: 0;
+  cursor: pointer;
+}
+.editor-list-item:hover { background: rgba(255, 255, 255, 0.08); color: #fff; }
+.editor-list-item.is-selected { background: rgba(70, 168, 116, 0.28); color: #fff; }
+.editor-list-item:focus-visible { outline: 2px solid #fff; outline-offset: -2px; }
+.editor-list-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.editor-list-meta { flex: none; color: rgba(255, 255, 255, 0.4); }
+.editor-list-empty { padding: 8px 9px; color: rgba(255, 255, 255, 0.4); }
 
 .editor-actions { display: flex; gap: 6px; }
 .editor-actions .editor-btn { flex: 1; }
+.editor-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+.editor-btn-danger { border-color: rgba(233, 118, 106, 0.5); color: #ffb9b0; }
+.editor-btn-danger:hover:not(:disabled) { background: rgba(200, 60, 45, 0.35); }
+
+.editor-status { margin: 0; min-height: 15px; color: rgba(255, 255, 255, 0.55); line-height: 1.5; }
+.editor-status.is-ok { color: #9fe6c4; }
+.editor-status.is-warn { color: #f0d08a; }
+.editor-status.is-error { color: #ffb0a6; }
+
+/* Unsaved changes: a quiet marker on the panel edge, not a dialog. */
+.editor.is-dirty { border-color: rgba(233, 176, 90, 0.55); }
 
 .editor-note { margin: 0; color: rgba(255, 255, 255, 0.45); line-height: 1.5; }
+
+/* Hotspots while the editor is open: draggable, and the selected one is ringed
+   so it can be told apart from the rest at a glance. */
+body.editor-active .hotspot { cursor: grab; }
+body.editor-active .hotspot.is-dragging { cursor: grabbing; }
+.hotspot.is-hovered .hotspot-icon { background: rgba(18, 18, 22, 0.85); }
+.hotspot.is-editing .hotspot-icon {
+  border-color: #46a874;
+  box-shadow: 0 0 0 3px rgba(70, 168, 116, 0.45), 0 1px 10px rgba(0, 0, 0, 0.35);
+}
 
 /* Keep the editor out of the way of the scene title on small screens. */
 @media (max-width: 720px) {
@@ -628,15 +812,20 @@ body.modal-open .ui { visibility: hidden; }
 
 @media (max-width: 560px) {
   .scene-title { font-size: 0.8125rem; padding: 8px 12px; }
-  .hint { font-size: 0.75rem; }
+  /* The hint shares the bottom edge with the minimap: let it wrap rather than
+     run underneath. */
+  .hint { font-size: 0.75rem; max-width: 42vw; }
   :root { --hotspot-size: 46px; }
   .modal-dialog { border-radius: var(--radius); }
+  .minimap { width: min(var(--minimap-width, 260px), 52vw); }
 }
 
 /* Landscape phones: the chrome must not eat the short viewport. */
 @media (max-height: 460px) and (orientation: landscape) {
   .ui-top, .ui-bottom { padding-top: 10px; padding-bottom: 10px; }
   .scene-menu { top: calc(58px + var(--safe-top)); max-height: 70dvh; }
+  /* A full-height floor plan would cover most of a landscape phone. */
+  .minimap { width: min(var(--minimap-width, 260px), 34vw); }
 }
 
 /* ------------------------------------------------- reduced motion */

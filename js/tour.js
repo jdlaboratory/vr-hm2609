@@ -219,6 +219,19 @@ export class Tour {
       .createHotspot(element, { yaw: position.yaw, pitch: position.pitch }, opts);
   }
 
+  /**
+   * Removes a hotspot created by addHotspot. Used by the editor; the tour
+   * itself never deletes hotspots.
+   * @param {string} sceneId
+   * @param {object} handle  the value addHotspot returned
+   */
+  removeHotspot(sceneId, handle) {
+    const entry = this._scenes.get(sceneId);
+    if (!entry || !handle) return;
+    const container = entry.marzipanoScene.hotspotContainer();
+    if (container.hasHotspot(handle)) container.destroyHotspot(handle);
+  }
+
   /** Current camera parameters, or null before the first scene loads. */
   currentView() {
     const entry = this._scenes.get(this._currentId);

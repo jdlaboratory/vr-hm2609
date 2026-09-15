@@ -28,6 +28,20 @@
       <h1 class="scene-title" id="sceneTitle" hidden></h1>
 
       <div class="ui-top-actions">
+        <!-- Fullscreen lives up here rather than bottom-right, where the
+             minimap now sits. -->
+        <button type="button" class="btn btn-icon" id="fullscreenBtn"
+                aria-label="Enter fullscreen" hidden>
+          <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false" class="icon-enter-fs">
+            <path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5" fill="none" stroke="currentColor"
+                  stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+          <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false" class="icon-exit-fs">
+            <path d="M9 4v5H4M15 4v5h5M9 20v-5H4M15 20v-5h5" fill="none" stroke="currentColor"
+                  stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+        </button>
+
         <!-- Scene menu (toggled by settings.sceneMenu) -->
         <button type="button" class="btn btn-icon" id="menuBtn"
                 aria-haspopup="true" aria-expanded="false" aria-controls="sceneMenu"
@@ -47,20 +61,32 @@
 
     <footer class="ui-bottom">
       <p class="hint" id="hint" hidden>Drag to look around</p>
-
-      <button type="button" class="btn btn-icon" id="fullscreenBtn"
-              aria-label="Enter fullscreen" hidden>
-        <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false" class="icon-enter-fs">
-          <path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5" fill="none" stroke="currentColor"
-                stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
-        </svg>
-        <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false" class="icon-exit-fs">
-          <path d="M9 4v5H4M15 4v5h5M9 20v-5H4M15 20v-5h5" fill="none" stroke="currentColor"
-                stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
-        </svg>
-      </button>
     </footer>
   </div>
+
+  <!-- ==========================================================
+       Minimap. A sibling of .ui rather than a child: the floor
+       plan itself has to receive clicks (the editor places the
+       active scene with one), and .ui is pointer-events: none.
+       Hidden until js/minimap.js has an image to show.
+       ========================================================== -->
+  <aside class="minimap" id="minimap" aria-label="층별 안내도" hidden>
+    <button type="button" class="minimap-toggle" id="minimapToggle"
+            aria-expanded="true" aria-controls="minimapBody" aria-label="안내도 접기">
+      <span class="minimap-title" id="minimapTitle"></span>
+      <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+        <path d="M7 10l5 5 5-5" fill="none" stroke="currentColor"
+              stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+    </button>
+
+    <div class="minimap-body" id="minimapBody">
+      <div class="minimap-plate" id="minimapPlate">
+        <img class="minimap-image" id="minimapImage" alt="">
+        <div class="minimap-pins" id="minimapPins"></div>
+      </div>
+    </div>
+  </aside>
 
   <!-- Loading indicator -->
   <div class="loader" id="loader" role="status" aria-live="polite">

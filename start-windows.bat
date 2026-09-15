@@ -6,7 +6,8 @@ rem  Double-click this file. It starts a small local web server and
 rem  opens the tour in your browser. Close the window (or press
 rem  Ctrl+C) to stop it.
 rem
-rem  Pass --edit to open the hotspot editor instead:
+rem  Pass --edit to open the editor instead. That also lets the
+rem  editor save your changes back into config/tour.json:
 rem      start-windows.bat --edit
 rem ===================================================================
 

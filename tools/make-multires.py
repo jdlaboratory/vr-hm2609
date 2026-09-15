@@ -28,6 +28,7 @@ Requires: pillow, numpy   ->   pip install pillow numpy
 import argparse
 import math
 import os
+import re
 import sys
 
 import numpy as np
@@ -182,9 +183,14 @@ def main():
     print(f'Converting {len(sources)} panorama(s) at {args.face_size}px/face '
           f'into {OUTPUT_DIR}')
     for filename in sources:
-        # 006.jpg -> scene06 : scene ids follow the source file numbers.
-        number = os.path.splitext(filename)[0]
-        scene_id = f'scene{int(number):02d}'
+        # Scene ids follow the source file names, letter suffixes included:
+        # 006.jpg -> scene06, 011b.jpg -> scene11b.
+        stem = os.path.splitext(filename)[0]
+        match = re.match(r'^(\d+)([A-Za-z]*)$', stem)
+        if not match:
+            print(f'  skipping {filename}: name is not <number>[letter]')
+            continue
+        scene_id = f'scene{int(match.group(1)):02d}{match.group(2).lower()}'
         convert(os.path.join(SOURCE_DIR, filename), scene_id,
                 args.face_size, args.tile_size, args.quality)
 

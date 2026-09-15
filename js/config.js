@@ -6,6 +6,12 @@
  * have an id/name/panorama/initialView, and hotspots that could never work
  * have been dropped with a console warning.
  *
+ * Each normalised scene and hotspot also carries a non-enumerable `_raw`
+ * pointing at the object it came from in tour.json. The editor writes through
+ * it, so saving re-emits the original file — comments, "_source" notes and
+ * anything else this module does not model included — instead of a lossy
+ * re-serialisation of the normalised model.
+ *
  * No Marzipano and no DOM in this file.
  */
 
@@ -21,10 +27,22 @@ const DEFAULT_SETTINGS = {
   updateUrlOnSceneChange: true,
   // Vertical field-of-view limits, in radians.
   minFov: 0.45,            // ~26deg  (zoomed in)
-  maxFov: 1.85             // ~106deg (zoomed out)
+  maxFov: 1.85,            // ~106deg (zoomed out)
+  // Floor-plan overlay. Off unless tour.json supplies an image.
+  minimap: null
 };
 
 const DEFAULT_INITIAL_VIEW = { yaw: 0, pitch: 0, fov: 1.4 };
+
+const DEFAULT_MINIMAP = {
+  enabled: true,
+  image: null,                            // required; without it the map is off
+  title: '',
+  pin: 'assets/icons/pin.svg',
+  pinActive: 'assets/icons/pin-active.svg',
+  width: 260,                             // px, at desktop sizes
+  startCollapsed: false
+};
 
 /** Hotspot types this build knows how to render. */
 export const HOTSPOT_TYPES = ['scene', 'youtube', 'info'];
@@ -72,6 +90,61 @@ function isFiniteNumber(value) {
 
 function numberOr(value, fallback) {
   return isFiniteNumber(value) ? value : fallback;
+}
+
+function clamp(value, min, max) {
+  return Math.min(max, Math.max(min, value));
+}
+
+/**
+ * Points a normalised object back at the tour.json object it came from, so the
+ * editor can write changes into the file's own structure. Non-enumerable: it
+ * must not show up in JSON.stringify or in `for...in` over the model.
+ *
+ * Exported so the editor links the hotspots it creates the same way.
+ */
+export function linkRaw(normalized, raw) {
+  Object.defineProperty(normalized, '_raw', { value: raw, writable: true, enumerable: false });
+  return normalized;
+}
+
+/**
+ * Normalises settings.minimap. Returns null whenever the minimap cannot be
+ * drawn, so callers only have to check one thing before rendering it.
+ */
+function normalizeMinimap(raw) {
+  if (!raw || typeof raw !== 'object') return null;
+  if (raw.enabled === false) return null;
+  if (typeof raw.image !== 'string' || !raw.image) {
+    console.warn('[tour] settings.minimap has no "image" path — minimap disabled.');
+    return null;
+  }
+  const text = (value, fallback) =>
+    (typeof value === 'string' && value ? value : fallback);
+  return {
+    enabled: true,
+    image: raw.image,
+    title: typeof raw.title === 'string' ? raw.title : DEFAULT_MINIMAP.title,
+    pin: text(raw.pin, DEFAULT_MINIMAP.pin),
+    pinActive: text(raw.pinActive, DEFAULT_MINIMAP.pinActive),
+    // Clamped: a minimap wider than a phone would cover the panorama.
+    width: Math.round(clamp(numberOr(raw.width, DEFAULT_MINIMAP.width), 140, 520)),
+    startCollapsed: raw.startCollapsed === true
+  };
+}
+
+/**
+ * A scene's position on the minimap, as a 0..1 fraction of the image.
+ * Returns null for scenes that have not been placed — they simply get no pin.
+ */
+function normalizeMapPosition(raw, sceneId) {
+  if (raw == null) return null;
+  if (typeof raw !== 'object' || !isFiniteNumber(raw.x) || !isFiniteNumber(raw.y)) {
+    console.warn(`[tour] scene "${sceneId}": "map" needs numeric x and y between ` +
+                 `0 and 1 — the scene will have no minimap pin.`);
+    return null;
+  }
+  return { x: clamp(raw.x, 0, 1), y: clamp(raw.y, 0, 1) };
 }
 
 /**
@@ -144,7 +217,7 @@ function normalizeHotspot(raw, scene, index) {
     hotspot.image = typeof raw.image === 'string' ? raw.image : null;
   }
 
-  return hotspot;
+  return linkRaw(hotspot, raw);
 }
 
 /**
@@ -173,8 +246,10 @@ function normalizeScene(raw, index) {
       pitch: numberOr(raw.initialView && raw.initialView.pitch, DEFAULT_INITIAL_VIEW.pitch),
       fov: numberOr(raw.initialView && raw.initialView.fov, DEFAULT_INITIAL_VIEW.fov)
     },
+    map: normalizeMapPosition(raw.map, raw.id),
     hotspots: []
   };
+  linkRaw(scene, raw);
 
   if (type === 'equirectangular') {
     // `url` may contain a {z} placeholder when several resolution levels exist.
@@ -227,7 +302,8 @@ function normalizeScene(raw, index) {
 /**
  * Fetches and validates config/tour.json.
  * @param {string} url
- * @returns {Promise<{settings: object, scenes: Array, sceneById: Map}>}
+ * @returns {Promise<{settings: object, scenes: Array, sceneById: Map, raw: object}>}
+ *   `raw` is the parsed file itself, shared with every `_raw` back-reference.
  */
 export async function loadTourConfig(url = 'config/tour.json') {
   let response;
@@ -252,6 +328,7 @@ export async function loadTourConfig(url = 'config/tour.json') {
   }
 
   const settings = Object.assign({}, DEFAULT_SETTINGS, raw.settings || {});
+  settings.minimap = normalizeMinimap(settings.minimap);
 
   const scenes = [];
   raw.scenes.forEach((rawScene, index) => {
@@ -294,5 +371,5 @@ export async function loadTourConfig(url = 'config/tour.json') {
     settings.defaultScene = scenes[0].id;
   }
 
-  return { settings, scenes, sceneById };
+  return { settings, scenes, sceneById, raw };
 }

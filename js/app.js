@@ -11,6 +11,7 @@ import { Tour } from './tour.js';
 import { installHotspots } from './hotspots.js';
 import { Modal, buildYouTubeEmbed, buildInfoContent } from './modal.js';
 import { UI } from './ui.js';
+import { Minimap } from './minimap.js';
 import { Editor, isEditorRequested } from './editor.js';
 
 const elements = {
@@ -25,6 +26,15 @@ const elements = {
   errorScreen: document.getElementById('errorScreen'),
   errorMessage: document.getElementById('errorMessage'),
   errorRetry: document.getElementById('errorRetry'),
+  minimap: {
+    root: document.getElementById('minimap'),
+    toggle: document.getElementById('minimapToggle'),
+    title: document.getElementById('minimapTitle'),
+    body: document.getElementById('minimapBody'),
+    plate: document.getElementById('minimapPlate'),
+    image: document.getElementById('minimapImage'),
+    pins: document.getElementById('minimapPins')
+  },
   modal: {
     root: document.getElementById('modal'),
     dialog: document.getElementById('modalDialog'),
@@ -107,8 +117,22 @@ async function start() {
     onClose: () => { tour.setControlsEnabled(true); tour.resumeMovement(); }
   });
 
+  // -------------------------------------------------------------- minimap
+  let minimap = null;
+  if (settings.minimap) {
+    try {
+      minimap = new Minimap(elements.minimap, settings.minimap, scenes, {
+        onSelectScene: (id) => goToScene(id)
+      });
+    } catch (err) {
+      // A broken minimap must never take the tour down with it.
+      console.error('[tour] Minimap could not be built:', err);
+      if (elements.minimap.root) elements.minimap.root.hidden = true;
+    }
+  }
+
   // ------------------------------------------------------------- hotspots
-  installHotspots(tour, config, {
+  const hotspots = installHotspots(tour, config, {
     onNavigate: (targetId, targetView) => goToScene(targetId, targetView),
 
     onOpenVideo: (hotspot, opener) => {
@@ -154,6 +178,7 @@ async function start() {
   tour.onSceneChange((scene) => {
     ui.setSceneName(scene.name);
     ui.setActiveScene(scene.id);
+    if (minimap) minimap.setActiveScene(scene.id);
     document.title = `${scene.name} — Virtual Tour`;
   });
 
@@ -166,7 +191,11 @@ async function start() {
   // ---------------------------------------------------------------- editor
   if (isEditorRequested()) {
     try {
-      new Editor(tour, config, elements.pano);
+      new Editor(tour, config, elements.pano, {
+        hotspots,
+        minimap,
+        onNavigate: (id) => goToScene(id)
+      });
     } catch (err) {
       console.error('[tour] Editor failed to start:', err);
     }

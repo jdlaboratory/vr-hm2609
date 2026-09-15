@@ -7,10 +7,14 @@ pages, so it has to be served over http://. This does exactly that and nothing
 else: no dependencies, no install, standard library only.
 
     python3 tools/serve.py              # serve and open a browser
-    python3 tools/serve.py --edit       # open straight into the hotspot editor
+    python3 tools/serve.py --edit       # open the editor, and let it save
     python3 tools/serve.py --lan        # also reachable from a phone on the same Wi-Fi
     python3 tools/serve.py --port 9000  # pick the port yourself
     python3 tools/serve.py --no-browser
+
+With --edit the server also accepts `PUT /api/tour-config`, which is how the
+editor's 저장 button writes config/tour.json. Without it the server is
+read-only, so a stray request cannot rewrite the tour.
 
 Stop it with Ctrl+C.
 """
@@ -18,7 +22,9 @@ Stop it with Ctrl+C.
 import argparse
 import functools
 import http.server
+import json
 import os
+import shutil
 import socket
 import sys
 import threading
@@ -30,6 +36,13 @@ if sys.version_info < MINIMUM_PYTHON:
              % (MINIMUM_PYTHON[0], MINIMUM_PYTHON[1], sys.version.split()[0]))
 
 PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+
+# The editor's save target. Only this one file can ever be written, and only
+# when the server was started with --edit.
+SAVE_PATH = '/api/tour-config'
+CONFIG_FILE = os.path.join(PROJECT_ROOT, 'config', 'tour.json')
+MAX_CONFIG_BYTES = 8 * 1024 * 1024
+ALLOW_SAVE = False
 
 # Content types the tour depends on. Some Windows installations have a broken
 # registry entry for .js, which breaks ES modules, so these are set explicitly.
@@ -64,6 +77,65 @@ class TourRequestHandler(http.server.SimpleHTTPRequestHandler):
             # Panoramas and tiles never change once generated.
             self.send_header('Cache-Control', 'max-age=3600')
         super().end_headers()
+
+    def do_PUT(self):
+        """Writes config/tour.json for the editor's save button."""
+        if self.path.split('?', 1)[0] != SAVE_PATH:
+            self.send_error(404, 'Not found')
+            return
+        if not ALLOW_SAVE:
+            self.send_error(403, 'Saving is disabled. Restart with --edit to allow it.')
+            return
+
+        try:
+            length = int(self.headers.get('Content-Length') or 0)
+        except ValueError:
+            length = 0
+        if length <= 0:
+            self.send_error(411, 'A Content-Length is required')
+            return
+        if length > MAX_CONFIG_BYTES:
+            self.send_error(413, 'That is far larger than a tour config')
+            return
+
+        body = self.rfile.read(length)
+        try:
+            parsed = json.loads(body.decode('utf-8'))
+        except (UnicodeDecodeError, ValueError) as err:
+            self.send_error(400, 'Not valid JSON: %s' % err)
+            return
+        # Refuse anything that is not recognisably a tour, so a misdirected
+        # request cannot leave the project without a config.
+        if not isinstance(parsed, dict) or not isinstance(parsed.get('scenes'), list) \
+                or not parsed['scenes']:
+            self.send_error(400, 'Not a tour config: no "scenes" array')
+            return
+
+        try:
+            self._write_config(body)
+        except OSError as err:
+            self.send_error(500, 'Could not write config/tour.json: %s' % err)
+            return
+
+        print('  saved config/tour.json  (%d scenes)' % len(parsed['scenes']))
+        sys.stdout.flush()
+        payload = json.dumps({'ok': True, 'scenes': len(parsed['scenes'])}).encode('utf-8')
+        self.send_response(200)
+        self.send_header('Content-Type', 'application/json')
+        self.send_header('Content-Length', str(len(payload)))
+        self.end_headers()
+        self.wfile.write(payload)
+
+    @staticmethod
+    def _write_config(body):
+        """Keeps one undo copy, then replaces the file in a single step."""
+        os.makedirs(os.path.dirname(CONFIG_FILE), exist_ok=True)
+        if os.path.isfile(CONFIG_FILE):
+            shutil.copyfile(CONFIG_FILE, CONFIG_FILE + '.bak')
+        temporary = CONFIG_FILE + '.tmp'
+        with open(temporary, 'wb') as handle:
+            handle.write(body)
+        os.replace(temporary, CONFIG_FILE)
 
     def log_message(self, fmt, *args):
         """Stay quiet about successful requests; report problems."""
@@ -106,7 +178,8 @@ def main():
                                      formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument('--port', type=int, default=8000, help='preferred port (default 8000)')
     parser.add_argument('--edit', action='store_true',
-                        help='open the browser with ?edit=1 (hotspot editor)')
+                        help='open the browser with ?edit=1 and let the editor '
+                             'save config/tour.json')
     parser.add_argument('--lan', action='store_true',
                         help='also accept connections from other devices on this network')
     parser.add_argument('--no-browser', action='store_true', help='do not open a browser')
@@ -114,6 +187,9 @@ def main():
 
     if not os.path.isfile(os.path.join(PROJECT_ROOT, 'index.html')):
         sys.exit('index.html was not found next to tools/. Is the project folder complete?')
+
+    global ALLOW_SAVE
+    ALLOW_SAVE = args.edit
 
     host = '0.0.0.0' if args.lan else '127.0.0.1'
     server, port = start_server(host, args.port)
@@ -133,6 +209,11 @@ def main():
         else:
             print('    Phone     could not determine this machine\'s network address')
     print()
+    if args.edit:
+        print('  Editing is on: the editor can overwrite config/tour.json.')
+        if args.lan:
+            print('  With --lan, anyone on this network can too. Use it on a network you trust.')
+        print()
     print('  Press Ctrl+C to stop.')
     print()
     sys.stdout.flush()   # so the URLs appear immediately even when redirected

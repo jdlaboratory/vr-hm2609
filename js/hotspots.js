@@ -143,23 +143,64 @@ export function createHotspotElement(hotspot, handlers, sceneById) {
  * them and cannot duplicate their listeners. Doing this lazily also means a
  * 30-scene tour builds only the hotspots the visitor actually reaches.
  *
+ * The returned object is the tour's live hotspot registry. The editor uses it
+ * to move, add and remove hotspots without a reload; nothing else needs more
+ * than `attachScene`.
+ *
  * @param {import('./tour.js').Tour} tour
  * @param {{scenes: Array, sceneById: Map}} config
  * @param {object} handlers  {onNavigate, onOpenVideo, onOpenInfo}
  */
 export function installHotspots(tour, config, handlers) {
   const attached = new Set();
+  /** @type {Map<object, {scene: object, element: HTMLElement, handle: object}>} */
+  const live = new Map();
+
+  function mount(scene, hotspot) {
+    const element = createHotspotElement(hotspot, handlers, config.sceneById);
+    if (!element) return null;
+    const handle = tour.addHotspot(scene.id, element, hotspot, hotspot.perspective);
+    if (!handle) return null;
+    const entry = { scene, element, handle };
+    live.set(hotspot, entry);
+    return entry;
+  }
 
   function attachScene(scene) {
     if (attached.has(scene.id)) return;
     attached.add(scene.id);
-    scene.hotspots.forEach((hotspot) => {
-      const element = createHotspotElement(hotspot, handlers, config.sceneById);
-      if (!element) return;
-      tour.addHotspot(scene.id, element, hotspot, hotspot.perspective);
-    });
+    scene.hotspots.forEach((hotspot) => mount(scene, hotspot));
   }
 
   tour.onSceneChange(attachScene);
-  return { attachScene };
+
+  return {
+    attachScene,
+
+    /** The DOM element and Marzipano handle for a normalised hotspot. */
+    entryFor(hotspot) {
+      return live.get(hotspot) || null;
+    },
+
+    /** Renders a hotspot that was added to a scene after it was attached. */
+    add(scene, hotspot) {
+      if (!attached.has(scene.id)) return null;   // it will be built on arrival
+      return mount(scene, hotspot);
+    },
+
+    /** Re-reads hotspot.yaw/pitch and moves the rendered hotspot to match. */
+    move(hotspot) {
+      const entry = live.get(hotspot);
+      if (!entry) return;
+      entry.handle.setPosition({ yaw: hotspot.yaw, pitch: hotspot.pitch });
+    },
+
+    /** Removes a hotspot from the scene it is rendered in. */
+    remove(hotspot) {
+      const entry = live.get(hotspot);
+      if (!entry) return;
+      tour.removeHotspot(entry.scene.id, entry.handle);
+      live.delete(hotspot);
+    }
+  };
 }
