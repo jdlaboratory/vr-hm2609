@@ -42,8 +42,10 @@ export class UI {
   // ---------------------------------------------------------------- scene menu
 
   /**
-   * Builds the scene list. Called once; the active item is updated on each
-   * scene change rather than the list being rebuilt.
+   * Builds the scene list. Safe to call again whenever the scene list changes —
+   * the editor does, on rename, add and delete. The list items are rebuilt each
+   * time; the button and document listeners are wired only on the first call,
+   * so repeat calls cannot stack duplicate handlers.
    */
   buildSceneMenu(scenes) {
     if (!this.settings.sceneMenu || scenes.length < 2) {
@@ -71,6 +73,9 @@ export class UI {
       list.appendChild(li);
       this._menuItems.set(scene.id, button);
     });
+
+    if (this._menuWired) return;
+    this._menuWired = true;
 
     this.el.menuBtn.addEventListener('click', () => this.toggleMenu());
 

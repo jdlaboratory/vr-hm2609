@@ -27,25 +27,26 @@
     "minimap": {
       "enabled": true,
       "image": "assets/source-map/hm_map.png",
-      "title": "B1 안내도",
+      "title": "",
       "pin": "assets/icons/pin.svg",
       "pinActive": "assets/icons/pin-active.svg",
-      "width": 300,
+      "width": 560,
+      "position": { "corner": "bottom-right", "x": 25, "y": 30 },
       "startCollapsed": false
     }
   },
   "scenes": [
     {
       "id": "scene01",
-      "name": "계단 상부 라운지",
+      "name": "계단 위",
       "_source": "assets/source-panoramas/001.jpg",
       "panorama": {
         "type": "equirectangular",
         "url": "assets/panoramas/equirect/scene01_{z}.jpg",
         "levels": [{ "width": 1024 }, { "width": 4096 }]
       },
-      "initialView": { "yaw": 0.1, "pitch": 0.05, "fov": 1.4 },
-      "map": { "x": 0.29, "y": 0.86 },
+      "initialView": { "yaw": 0.037, "pitch": 0.007, "fov": 1.195 },
+      "map": { "x": 0.2933, "y": 0.884 },
       "hotspots": [
         {
           "id": "scene01-to-scene06",
@@ -59,9 +60,19 @@
           "id": "scene01-to-scene07",
           "type": "scene",
           "target": "scene07",
-          "yaw": 0.35,
-          "pitch": 0.15,
+          "yaw": 0.412,
+          "pitch": 0.616,
           "label": "전시 입구"
+        },
+        {
+          "id": "scene01-hs1",
+          "type": "vimeo",
+          "target": "scene02",
+          "yaw": 0.067,
+          "pitch": 0.203,
+          "label": "Asylum of the Birds",
+          "title": "Asylum of the Birds",
+          "videoId": "1223674732"
         }
       ]
     },
@@ -75,8 +86,8 @@
         "url": "assets/panoramas/equirect/scene06_{z}.jpg",
         "levels": [{ "width": 1024 }, { "width": 4096 }]
       },
-      "initialView": { "yaw": 0.25, "pitch": 0.03, "fov": 1.45 },
-      "map": { "x": 0.46, "y": 0.72 },
+      "initialView": { "yaw": 1.571, "pitch": 0.066, "fov": 1.195 },
+      "map": { "x": 0.3894, "y": 0.6959 },
       "hotspots": [
         {
           "id": "scene06-to-scene02",
@@ -101,6 +112,14 @@
           "yaw": 1.6,
           "pitch": 0.2,
           "label": "전시 입구"
+        },
+        {
+          "id": "scene06-hs1",
+          "type": "scene",
+          "target": "scene08",
+          "yaw": 2.716,
+          "pitch": 0.119,
+          "label": "멀티홀 중앙"
         }
       ]
     },
@@ -114,8 +133,8 @@
         "url": "assets/panoramas/equirect/scene02_{z}.jpg",
         "levels": [{ "width": 1024 }, { "width": 4096 }]
       },
-      "initialView": { "yaw": 1.2, "pitch": 0.05, "fov": 1.4 },
-      "map": { "x": 0.63, "y": 0.86 },
+      "initialView": { "yaw": 3.142, "pitch": 0.069, "fov": 1.195 },
+      "map": { "x": 0.6442, "y": 0.7228 },
       "hotspots": [
         {
           "id": "scene02-to-scene06",
@@ -129,63 +148,71 @@
           "id": "scene02-to-scene05",
           "type": "scene",
           "target": "scene05",
-          "yaw": 0.6,
-          "pitch": 0.24,
-          "label": "물품보관함 라운지"
+          "yaw": 0.525,
+          "pitch": 0.089,
+          "label": "정원 입구"
         }
       ]
     },
 
     {
       "id": "scene05",
-      "name": "물품보관함 라운지",
+      "name": "정원 입구",
       "_source": "assets/source-panoramas/005.jpg",
       "panorama": {
         "type": "equirectangular",
         "url": "assets/panoramas/equirect/scene05_{z}.jpg",
         "levels": [{ "width": 1024 }, { "width": 4096 }]
       },
-      "initialView": { "yaw": -0.1, "pitch": 0.05, "fov": 1.4 },
-      "map": { "x": 0.56, "y": 0.78 },
+      "initialView": { "yaw": 2.342, "pitch": 0.021, "fov": 1.195 },
+      "map": { "x": 0.8027, "y": 0.6143 },
       "hotspots": [
         {
           "id": "scene05-to-scene02",
           "type": "scene",
           "target": "scene02",
-          "yaw": 2.65,
-          "pitch": 0.25,
+          "yaw": 3.063,
+          "pitch": 0.21,
           "label": "카페"
         },
         {
           "id": "scene05-to-scene03",
           "type": "scene",
           "target": "scene03",
-          "yaw": -0.03,
-          "pitch": 0.24,
-          "label": "편의시설 복도"
+          "yaw": 1.62,
+          "pitch": 0.062,
+          "label": "화장실 앞"
+        },
+        {
+          "id": "scene05-hs1",
+          "type": "scene",
+          "target": "scene22",
+          "yaw": 0.057,
+          "pitch": 0.398,
+          "label": "엘리베이터 홀"
         }
       ]
     },
 
     {
       "id": "scene03",
-      "name": "편의시설 복도",
+      "name": "화장실 앞",
       "_source": "assets/source-panoramas/003.jpg",
       "panorama": {
         "type": "equirectangular",
         "url": "assets/panoramas/equirect/scene03_{z}.jpg",
         "levels": [{ "width": 1024 }, { "width": 4096 }]
       },
-      "initialView": { "yaw": 0, "pitch": 0.05, "fov": 1.4 },
-      "map": { "x": 0.8, "y": 0.85 },
+      "initialView": { "yaw": 0.129, "pitch": 0.118, "fov": 1.195 },
+      "map": { "x": 0.8039, "y": 0.7544 },
       "hotspots": [
         {
           "id": "scene03-to-scene05",
           "type": "scene",
           "target": "scene05",
-          "yaw": 1.4,
-          "pitch": 0.25,
-          "label": "물품보관함 라운지"
+          "yaw": 1.732,
+          "pitch": 0.111,
+          "label": "정원 입구"
         },
         {
           "id": "scene03-to-scene04",
@@ -207,15 +234,15 @@
         "url": "assets/panoramas/equirect/scene04_{z}.jpg",
         "levels": [{ "width": 1024 }, { "width": 4096 }]
       },
-      "initialView": { "yaw": 0.6, "pitch": 0.05, "fov": 1.4 },
-      "map": { "x": 0.76, "y": 0.79 },
+      "initialView": { "yaw": -0.992, "pitch": 0.183, "fov": 1.195 },
+      "map": { "x": 0.8301, "y": 0.9084 },
       "hotspots": [
         {
           "id": "scene04-to-scene03",
           "type": "scene",
           "target": "scene03",
-          "yaw": 1.2,
-          "pitch": 0.2,
+          "yaw": 1.317,
+          "pitch": 0.149,
           "label": "복도로 나가기"
         }
       ]
@@ -230,32 +257,48 @@
         "url": "assets/panoramas/equirect/scene07_{z}.jpg",
         "levels": [{ "width": 1024 }, { "width": 4096 }]
       },
-      "initialView": { "yaw": -0.2, "pitch": 0.03, "fov": 1.4 },
-      "map": { "x": 0.4, "y": 0.66 },
+      "initialView": { "yaw": -0.115, "pitch": 0.041, "fov": 1.195 },
+      "map": { "x": 0.2408, "y": 0.6927 },
       "hotspots": [
         {
           "id": "scene07-to-scene06",
           "type": "scene",
           "target": "scene06",
-          "yaw": 1.95,
-          "pitch": 0.25,
+          "yaw": 1.639,
+          "pitch": 0.213,
           "label": "중앙 로비"
         },
         {
           "id": "scene07-to-scene01",
           "type": "scene",
           "target": "scene01",
-          "yaw": 3,
-          "pitch": 0.1,
+          "yaw": 2.53,
+          "pitch": -0.154,
           "label": "계단 위 라운지"
         },
         {
           "id": "scene07-to-scene12",
           "type": "scene",
           "target": "scene12",
-          "yaw": -1.48,
-          "pitch": 0.22,
+          "yaw": -1.37,
+          "pitch": 0.105,
           "label": "티켓 게이트"
+        },
+        {
+          "id": "scene07-hs1",
+          "type": "scene",
+          "target": "scene08",
+          "yaw": 0.004,
+          "pitch": 0.075,
+          "label": "멀티홀 중앙"
+        },
+        {
+          "id": "scene07-hs2",
+          "type": "scene",
+          "target": "scene11",
+          "yaw": -0.861,
+          "pitch": 0.064,
+          "label": "멀티홀 좌상단"
         }
       ]
     },
@@ -269,488 +312,418 @@
         "url": "assets/panoramas/equirect/scene12_{z}.jpg",
         "levels": [{ "width": 1024 }, { "width": 4096 }]
       },
-      "initialView": { "yaw": -0.3, "pitch": 0.03, "fov": 1.4 },
-      "map": { "x": 0.5, "y": 0.63 },
+      "initialView": { "yaw": 0.039, "pitch": 0.08, "fov": 1.195 },
+      "map": { "x": 0.1442, "y": 0.6617 },
       "hotspots": [
         {
           "id": "scene12-to-scene07",
           "type": "scene",
           "target": "scene07",
-          "yaw": 1.7,
-          "pitch": 0.25,
+          "yaw": 1.654,
+          "pitch": 0.254,
           "label": "전시 입구"
         },
         {
           "id": "scene12-to-scene08",
           "type": "scene",
           "target": "scene08",
-          "yaw": -0.52,
-          "pitch": 0.22,
+          "yaw": 1.493,
+          "pitch": 0.163,
           "label": "전시장 입장"
+        },
+        {
+          "id": "scene12-hs1",
+          "type": "scene",
+          "target": "scene13",
+          "yaw": 0.103,
+          "pitch": 0.118,
+          "label": "복도 1"
         }
       ]
     },
 
     {
       "id": "scene08",
-      "name": "멀티홀 인트로",
+      "name": "멀티홀 중앙",
       "_source": "assets/source-panoramas/008.jpg",
       "panorama": {
         "type": "equirectangular",
         "url": "assets/panoramas/equirect/scene08_{z}.jpg",
         "levels": [{ "width": 1024 }, { "width": 4096 }]
       },
-      "initialView": { "yaw": 0, "pitch": 0, "fov": 1.4 },
-      "map": { "x": 0.46, "y": 0.55 },
+      "initialView": { "yaw": 0.002, "pitch": 0.077, "fov": 1.195 },
+      "map": { "x": 0.3186, "y": 0.5078 },
       "hotspots": [
         {
-          "id": "scene08-to-scene12",
+          "id": "scene08-hs1",
           "type": "scene",
-          "target": "scene12",
-          "yaw": 2.7,
-          "pitch": 0.25,
-          "label": "게이트로 나가기"
+          "target": "scene24",
+          "yaw": 1.198,
+          "pitch": 0.052,
+          "label": "멀티홀 중앙상단"
         },
         {
-          "id": "scene08-to-scene23",
+          "id": "scene08-hs2",
           "type": "scene",
-          "target": "scene23",
-          "yaw": 1.2,
-          "pitch": 0.25,
-          "label": "멀티홀 중앙"
+          "target": "scene07",
+          "yaw": -1.552,
+          "pitch": 0.134,
+          "label": "전시 입구"
+        },
+        {
+          "id": "scene08-hs3",
+          "type": "scene",
+          "target": "scene06",
+          "yaw": -2.504,
+          "pitch": 0.159,
+          "label": "중앙 로비"
+        },
+        {
+          "id": "scene08-hs4",
+          "type": "vimeo",
+          "target": "scene01",
+          "yaw": -0.013,
+          "pitch": 0.049,
+          "label": "Theatre of Apparitions",
+          "videoId": "1223679817",
+          "title": "Theatre of Apparitions"
         }
       ]
     },
 
     {
       "id": "scene23",
-      "name": "멀티홀 중앙",
+      "name": "멀티홀 우상단",
       "_source": "assets/source-panoramas/023.jpg",
       "panorama": {
         "type": "equirectangular",
         "url": "assets/panoramas/equirect/scene23_{z}.jpg",
         "levels": [{ "width": 1024 }, { "width": 4096 }]
       },
-      "initialView": { "yaw": 0, "pitch": 0, "fov": 1.4 },
-      "map": { "x": 0.41, "y": 0.46 },
+      "initialView": { "yaw": -0.044, "pitch": 0.032, "fov": 1.195 },
+      "map": { "x": 0.4504, "y": 0.3397 },
       "hotspots": [
         {
-          "id": "scene23-to-scene08",
+          "id": "scene23-hs1",
           "type": "scene",
-          "target": "scene08",
-          "yaw": -0.6,
-          "pitch": 0.25,
-          "label": "멀티홀 인트로"
+          "target": "scene06",
+          "yaw": -0.751,
+          "pitch": 0.076,
+          "label": "중앙 로비"
         },
         {
-          "id": "scene23-to-scene09",
-          "type": "scene",
-          "target": "scene09",
-          "yaw": 0.8,
-          "pitch": 0.25,
-          "label": "영상 코너"
-        }
-      ]
-    },
-
-    {
-      "id": "scene09",
-      "name": "영상 코너",
-      "_source": "assets/source-panoramas/009.jpg",
-      "panorama": {
-        "type": "equirectangular",
-        "url": "assets/panoramas/equirect/scene09_{z}.jpg",
-        "levels": [{ "width": 1024 }, { "width": 4096 }]
-      },
-      "initialView": { "yaw": 0.5, "pitch": 0, "fov": 1.4 },
-      "map": { "x": 0.34, "y": 0.51 },
-      "hotspots": [
-        {
-          "id": "scene09-to-scene23",
-          "type": "scene",
-          "target": "scene23",
-          "yaw": -2.3,
-          "pitch": 0.25,
-          "label": "멀티홀 중앙"
-        },
-        {
-          "id": "scene09-to-scene09a",
-          "type": "scene",
-          "target": "scene09a",
-          "yaw": 1.6,
-          "pitch": 0.25,
-          "label": "영상 코너 안쪽"
-        }
-      ]
-    },
-
-    {
-      "id": "scene09a",
-      "name": "영상 코너 안쪽",
-      "_source": "assets/source-panoramas/009a.jpg",
-      "panorama": {
-        "type": "equirectangular",
-        "url": "assets/panoramas/equirect/scene09a_{z}.jpg",
-        "levels": [{ "width": 1024 }, { "width": 4096 }]
-      },
-      "initialView": { "yaw": 0.1, "pitch": 0, "fov": 1.4 },
-      "map": { "x": 0.29, "y": 0.46 },
-      "hotspots": [
-        {
-          "id": "scene09a-to-scene09",
-          "type": "scene",
-          "target": "scene09",
-          "yaw": -2.6,
-          "pitch": 0.25,
-          "label": "영상 코너"
-        },
-        {
-          "id": "scene09a-to-scene24",
+          "id": "scene23-hs2",
           "type": "scene",
           "target": "scene24",
-          "yaw": 1.7,
-          "pitch": 0.25,
-          "label": "멀티홀 서편"
+          "yaw": 1.053,
+          "pitch": 0.135,
+          "label": "멀티홀 중앙상단"
+        },
+        {
+          "id": "scene23-hs3",
+          "type": "vimeo",
+          "target": "scene01",
+          "yaw": -0.02,
+          "pitch": 0.072,
+          "label": "Roger the Rat",
+          "videoId": "1223677194",
+          "title": "Roger the Rat"
         }
       ]
     },
 
     {
       "id": "scene24",
-      "name": "멀티홀 서편",
+      "name": "멀티홀 중앙상단",
       "_source": "assets/source-panoramas/024.jpg",
       "panorama": {
         "type": "equirectangular",
         "url": "assets/panoramas/equirect/scene24_{z}.jpg",
         "levels": [{ "width": 1024 }, { "width": 4096 }]
       },
-      "initialView": { "yaw": 0, "pitch": 0, "fov": 1.45 },
-      "map": { "x": 0.33, "y": 0.37 },
+      "initialView": { "yaw": -0.124, "pitch": 0.051, "fov": 1.195 },
+      "map": { "x": 0.315, "y": 0.3173 },
       "hotspots": [
         {
-          "id": "scene24-to-scene09a",
+          "id": "scene24-hs1",
           "type": "scene",
-          "target": "scene09a",
-          "yaw": -1.3,
-          "pitch": 0.25,
-          "label": "영상 코너 안쪽"
+          "target": "scene23",
+          "yaw": -1.394,
+          "pitch": 0.074,
+          "label": "멀티홀 우상단"
         },
         {
-          "id": "scene24-to-scene10",
-          "type": "scene",
-          "target": "scene10",
-          "yaw": 0.02,
-          "pitch": 0.25,
-          "label": "멀티홀 북편"
-        }
-      ]
-    },
-
-    {
-      "id": "scene10",
-      "name": "멀티홀 북편",
-      "_source": "assets/source-panoramas/010.jpg",
-      "panorama": {
-        "type": "equirectangular",
-        "url": "assets/panoramas/equirect/scene10_{z}.jpg",
-        "levels": [{ "width": 1024 }, { "width": 4096 }]
-      },
-      "initialView": { "yaw": -1.9, "pitch": 0, "fov": 1.45 },
-      "map": { "x": 0.25, "y": 0.33 },
-      "hotspots": [
-        {
-          "id": "scene10-to-scene24",
-          "type": "scene",
-          "target": "scene24",
-          "yaw": -1.9,
-          "pitch": 0.25,
-          "label": "멀티홀 서편"
-        },
-        {
-          "id": "scene10-to-scene11",
+          "id": "scene24-hs2",
           "type": "scene",
           "target": "scene11",
-          "yaw": -3,
-          "pitch": 0.25,
-          "label": "미디어 아카이브"
+          "yaw": 1.546,
+          "pitch": 0.129,
+          "label": "멀티홀 좌상단"
+        },
+        {
+          "id": "scene24-hs3",
+          "type": "scene",
+          "target": "scene08",
+          "yaw": 0.029,
+          "pitch": 0.2,
+          "label": "멀티홀 중앙"
         }
       ]
     },
 
     {
       "id": "scene11",
-      "name": "미디어 아카이브",
+      "name": "멀티홀 좌상단",
       "_source": "assets/source-panoramas/011.jpg",
       "panorama": {
         "type": "equirectangular",
         "url": "assets/panoramas/equirect/scene11_{z}.jpg",
         "levels": [{ "width": 1024 }, { "width": 4096 }]
       },
-      "initialView": { "yaw": 0, "pitch": 0.02, "fov": 1.4 },
-      "map": { "x": 0.19, "y": 0.41 },
+      "initialView": { "yaw": 2.091, "pitch": 0.027, "fov": 1.195 },
+      "map": { "x": 0.1765, "y": 0.3696 },
       "hotspots": [
         {
-          "id": "scene11-to-scene10",
+          "id": "scene11-hs1",
           "type": "scene",
-          "target": "scene10",
-          "yaw": 2.6,
-          "pitch": 0.25,
-          "label": "멀티홀 북편"
+          "target": "scene12",
+          "yaw": 3.077,
+          "pitch": 0.091,
+          "label": "티켓 게이트"
         },
         {
-          "id": "scene11-to-scene11b",
+          "id": "scene11-hs2",
           "type": "scene",
-          "target": "scene11b",
-          "yaw": 1.55,
-          "pitch": 0.25,
-          "label": "아카이브 안쪽"
-        }
-      ]
-    },
-
-    {
-      "id": "scene11b",
-      "name": "아카이브 안쪽",
-      "_source": "assets/source-panoramas/011b.jpg",
-      "panorama": {
-        "type": "equirectangular",
-        "url": "assets/panoramas/equirect/scene11b_{z}.jpg",
-        "levels": [{ "width": 1024 }, { "width": 4096 }]
-      },
-      "initialView": { "yaw": 0, "pitch": 0.02, "fov": 1.4 },
-      "map": { "x": 0.175, "y": 0.31 },
-      "hotspots": [
-        {
-          "id": "scene11b-to-scene11",
-          "type": "scene",
-          "target": "scene11",
-          "yaw": 1.7,
-          "pitch": 0.25,
-          "label": "미디어 아카이브"
+          "target": "scene24",
+          "yaw": 1.373,
+          "pitch": 0.111,
+          "label": "멀티홀 중앙상단"
         },
         {
-          "id": "scene11b-to-scene13",
+          "id": "scene11-hs3",
           "type": "scene",
-          "target": "scene13",
-          "yaw": -3,
-          "pitch": 0.25,
-          "label": "암막 영상실"
-        }
-      ]
-    },
-
-    {
-      "id": "scene13",
-      "name": "암막 영상실",
-      "_source": "assets/source-panoramas/013.jpg",
-      "panorama": {
-        "type": "equirectangular",
-        "url": "assets/panoramas/equirect/scene13_{z}.jpg",
-        "levels": [{ "width": 1024 }, { "width": 4096 }]
-      },
-      "initialView": { "yaw": 0, "pitch": 0, "fov": 1.4 },
-      "map": { "x": 0.095, "y": 0.55 },
-      "hotspots": [
-        {
-          "id": "scene13-to-scene11b",
-          "type": "scene",
-          "target": "scene11b",
-          "yaw": 3.05,
-          "pitch": 0.25,
-          "label": "아카이브 안쪽"
-        },
-        {
-          "id": "scene13-to-scene14",
-          "type": "scene",
-          "target": "scene14",
-          "yaw": 0.1,
-          "pitch": 0.25,
-          "label": "영상 복도"
+          "target": "scene08",
+          "yaw": 2.257,
+          "pitch": 0.131,
+          "label": "멀티홀 중앙"
         }
       ]
     },
 
     {
       "id": "scene14",
-      "name": "영상 복도",
+      "name": "I Fink U Freeky",
       "_source": "assets/source-panoramas/014.jpg",
       "panorama": {
         "type": "equirectangular",
         "url": "assets/panoramas/equirect/scene14_{z}.jpg",
         "levels": [{ "width": 1024 }, { "width": 4096 }]
       },
-      "initialView": { "yaw": 0, "pitch": 0, "fov": 1.45 },
-      "map": { "x": 0.095, "y": 0.42 },
+      "initialView": { "yaw": -0.456, "pitch": -0.048, "fov": 1.195 },
+      "map": { "x": 0.1042, "y": 0.3148 },
       "hotspots": [
-        {
-          "id": "scene14-to-scene13",
-          "type": "scene",
-          "target": "scene13",
-          "yaw": -1.3,
-          "pitch": 0.25,
-          "label": "암막 영상실"
-        },
         {
           "id": "scene14-to-scene15",
           "type": "scene",
           "target": "scene15",
-          "yaw": 1.9,
-          "pitch": 0.25,
-          "label": "연결 복도"
+          "yaw": -1.061,
+          "pitch": 0.14,
+          "label": "복도 코너"
+        },
+        {
+          "id": "scene14-hs1",
+          "type": "vimeo",
+          "target": "scene01",
+          "yaw": 0.037,
+          "pitch": 0.076,
+          "label": "I Fink U Freeky",
+          "title": "I Fink U Freeky",
+          "videoId": "1223677138"
+        }
+      ]
+    },
+
+    {
+      "id": "scene13",
+      "name": "복도 1",
+      "_source": "assets/source-panoramas/013.jpg",
+      "panorama": {
+        "type": "equirectangular",
+        "url": "assets/panoramas/equirect/scene13_{z}.jpg",
+        "levels": [{ "width": 1024 }, { "width": 4096 }]
+      },
+      "initialView": { "yaw": 0.046, "pitch": 0.005, "fov": 1.195 },
+      "map": { "x": 0.1026, "y": 0.4907 },
+      "hotspots": [
+        {
+          "id": "scene13-hs1",
+          "type": "scene",
+          "target": "scene12",
+          "yaw": -3.05,
+          "pitch": 0.147,
+          "label": "티켓 게이트"
+        },
+        {
+          "id": "scene13-hs2",
+          "type": "scene",
+          "target": "scene14",
+          "yaw": 0.018,
+          "pitch": 0.052,
+          "label": "I Fink U Freeky"
         }
       ]
     },
 
     {
       "id": "scene15",
-      "name": "연결 복도",
+      "name": "복도 코너",
       "_source": "assets/source-panoramas/015.jpg",
       "panorama": {
         "type": "equirectangular",
         "url": "assets/panoramas/equirect/scene15_{z}.jpg",
         "levels": [{ "width": 1024 }, { "width": 4096 }]
       },
-      "initialView": { "yaw": 0, "pitch": 0.02, "fov": 1.45 },
-      "map": { "x": 0.095, "y": 0.28 },
+      "initialView": { "yaw": 0.04, "pitch": -0.026, "fov": 1.195 },
+      "map": { "x": 0.1042, "y": 0.139 },
       "hotspots": [
         {
           "id": "scene15-to-scene14",
           "type": "scene",
           "target": "scene14",
-          "yaw": -0.05,
-          "pitch": 0.25,
-          "label": "영상 복도"
+          "yaw": 1.565,
+          "pitch": 0.293,
+          "label": "I Fink U Freeky"
         },
         {
           "id": "scene15-to-scene16",
           "type": "scene",
-          "target": "scene16",
-          "yaw": 1.95,
-          "pitch": 0.25,
-          "label": "벽화 갤러리 A"
+          "target": "scene17",
+          "yaw": -0.044,
+          "pitch": 0.128,
+          "label": "벽화 갤러리 1"
         }
       ]
     },
 
     {
       "id": "scene16",
-      "name": "벽화 갤러리 A",
+      "name": "벽화 갤러리 2",
       "_source": "assets/source-panoramas/016.jpg",
       "panorama": {
         "type": "equirectangular",
         "url": "assets/panoramas/equirect/scene16_{z}.jpg",
         "levels": [{ "width": 1024 }, { "width": 4096 }]
       },
-      "initialView": { "yaw": -0.6, "pitch": 0, "fov": 1.4 },
-      "map": { "x": 0.17, "y": 0.145 },
+      "initialView": { "yaw": 0.5, "pitch": -0.048, "fov": 1.195 },
+      "map": { "x": 0.3725, "y": 0.1342 },
       "hotspots": [
         {
           "id": "scene16-to-scene15",
           "type": "scene",
-          "target": "scene15",
-          "yaw": -2.3,
-          "pitch": 0.25,
-          "label": "연결 복도"
+          "target": "scene17",
+          "yaw": -2.15,
+          "pitch": 0.089,
+          "label": "벽화 갤러리 1"
         },
         {
           "id": "scene16-to-scene17",
           "type": "scene",
-          "target": "scene17",
-          "yaw": 0.8,
-          "pitch": 0.25,
-          "label": "벽화 갤러리 B"
+          "target": "scene18",
+          "yaw": 0.876,
+          "pitch": 0.111,
+          "label": "벽화 갤러리 3"
         }
       ]
     },
 
     {
       "id": "scene17",
-      "name": "벽화 갤러리 B",
+      "name": "벽화 갤러리 1",
       "_source": "assets/source-panoramas/017.jpg",
       "panorama": {
         "type": "equirectangular",
         "url": "assets/panoramas/equirect/scene17_{z}.jpg",
         "levels": [{ "width": 1024 }, { "width": 4096 }]
       },
-      "initialView": { "yaw": -0.5, "pitch": 0, "fov": 1.4 },
-      "map": { "x": 0.31, "y": 0.145 },
+      "initialView": { "yaw": 0.272, "pitch": 0.011, "fov": 1.195 },
+      "map": { "x": 0.2549, "y": 0.1342 },
       "hotspots": [
         {
           "id": "scene17-to-scene16",
           "type": "scene",
           "target": "scene16",
-          "yaw": -2.45,
-          "pitch": 0.25,
-          "label": "벽화 갤러리 A"
+          "yaw": 0.814,
+          "pitch": 0.064,
+          "label": "벽화 갤러리 2"
         },
         {
-          "id": "scene17-to-scene18",
+          "id": "scene17-hs1",
           "type": "scene",
-          "target": "scene18",
-          "yaw": 0.75,
-          "pitch": 0.25,
-          "label": "벽화 갤러리 C"
+          "target": "scene15",
+          "yaw": -2.175,
+          "pitch": 0.086,
+          "label": "복도 코너"
         }
       ]
     },
 
     {
       "id": "scene18",
-      "name": "벽화 갤러리 C",
+      "name": "벽화 갤러리 3",
       "_source": "assets/source-panoramas/018.jpg",
       "panorama": {
         "type": "equirectangular",
         "url": "assets/panoramas/equirect/scene18_{z}.jpg",
         "levels": [{ "width": 1024 }, { "width": 4096 }]
       },
-      "initialView": { "yaw": -0.5, "pitch": 0, "fov": 1.4 },
-      "map": { "x": 0.45, "y": 0.145 },
+      "initialView": { "yaw": 0.455, "pitch": -0.002, "fov": 1.195 },
+      "map": { "x": 0.4939, "y": 0.1342 },
       "hotspots": [
         {
           "id": "scene18-to-scene17",
           "type": "scene",
-          "target": "scene17",
-          "yaw": -2.35,
-          "pitch": 0.25,
-          "label": "벽화 갤러리 B"
+          "target": "scene16",
+          "yaw": -1.96,
+          "pitch": 0.123,
+          "label": "벽화 갤러리 2"
         },
         {
           "id": "scene18-to-scene19",
           "type": "scene",
           "target": "scene19",
-          "yaw": 1.05,
-          "pitch": 0.25,
-          "label": "벽화 갤러리 D"
+          "yaw": 1.033,
+          "pitch": 0.123,
+          "label": "벽화 갤러리 4"
         }
       ]
     },
 
     {
       "id": "scene19",
-      "name": "벽화 갤러리 D",
+      "name": "벽화 갤러리 4",
       "_source": "assets/source-panoramas/019.jpg",
       "panorama": {
         "type": "equirectangular",
         "url": "assets/panoramas/equirect/scene19_{z}.jpg",
         "levels": [{ "width": 1024 }, { "width": 4096 }]
       },
-      "initialView": { "yaw": -0.4, "pitch": 0, "fov": 1.4 },
-      "map": { "x": 0.59, "y": 0.145 },
+      "initialView": { "yaw": 0.544, "pitch": -0.011, "fov": 1.195 },
+      "map": { "x": 0.6691, "y": 0.1436 },
       "hotspots": [
         {
           "id": "scene19-to-scene18",
           "type": "scene",
           "target": "scene18",
-          "yaw": -2.4,
-          "pitch": 0.25,
-          "label": "벽화 갤러리 C"
+          "yaw": -2.078,
+          "pitch": 0.208,
+          "label": "벽화 갤러리 3"
         },
         {
           "id": "scene19-to-scene20",
           "type": "scene",
           "target": "scene20",
-          "yaw": 0.85,
-          "pitch": 0.25,
+          "yaw": 0.932,
+          "pitch": 0.161,
           "label": "퍼플 갤러리"
         }
       ]
@@ -765,24 +738,34 @@
         "url": "assets/panoramas/equirect/scene20_{z}.jpg",
         "levels": [{ "width": 1024 }, { "width": 4096 }]
       },
-      "initialView": { "yaw": 0.3, "pitch": 0, "fov": 1.4 },
-      "map": { "x": 0.78, "y": 0.16 },
+      "initialView": { "yaw": 0.148, "pitch": 0.021, "fov": 1.195 },
+      "map": { "x": 0.8787, "y": 0.1772 },
       "hotspots": [
         {
           "id": "scene20-to-scene19",
           "type": "scene",
           "target": "scene19",
-          "yaw": -3,
-          "pitch": 0.25,
-          "label": "벽화 갤러리 D"
+          "yaw": -3.091,
+          "pitch": 0.148,
+          "label": "벽화 갤러리 4"
         },
         {
           "id": "scene20-to-scene21",
           "type": "scene",
           "target": "scene21",
-          "yaw": 1.6,
-          "pitch": 0.25,
+          "yaw": 1.553,
+          "pitch": 0.101,
           "label": "상영실"
+        },
+        {
+          "id": "scene20-hs1",
+          "type": "vimeo",
+          "target": "scene01",
+          "yaw": -0.02,
+          "pitch": 0.063,
+          "label": "Ballenesque",
+          "videoId": "1223677057",
+          "title": "Ballenesque"
         }
       ]
     },
@@ -796,8 +779,8 @@
         "url": "assets/panoramas/equirect/scene21_{z}.jpg",
         "levels": [{ "width": 1024 }, { "width": 4096 }]
       },
-      "initialView": { "yaw": 0, "pitch": 0, "fov": 1.4 },
-      "map": { "x": 0.89, "y": 0.4 },
+      "initialView": { "yaw": 0.031, "pitch": 0.062, "fov": 1.195 },
+      "map": { "x": 0.8811, "y": 0.4312 },
       "hotspots": [
         {
           "id": "scene21-to-scene20",
@@ -811,9 +794,19 @@
           "id": "scene21-to-scene22",
           "type": "scene",
           "target": "scene22",
-          "yaw": 1.75,
-          "pitch": 0.25,
+          "yaw": 1.682,
+          "pitch": 0.067,
           "label": "엘리베이터 홀"
+        },
+        {
+          "id": "scene21-hs1",
+          "type": "vimeo",
+          "target": "scene01",
+          "yaw": 0.013,
+          "pitch": 0.024,
+          "label": "Outland",
+          "videoId": "1223677160",
+          "title": "Outland"
         }
       ]
     },
@@ -827,8 +820,8 @@
         "url": "assets/panoramas/equirect/scene22_{z}.jpg",
         "levels": [{ "width": 1024 }, { "width": 4096 }]
       },
-      "initialView": { "yaw": 1.8, "pitch": 0.03, "fov": 1.4 },
-      "map": { "x": 0.9, "y": 0.87 },
+      "initialView": { "yaw": 2.523, "pitch": -0.001, "fov": 1.195 },
+      "map": { "x": 0.8934, "y": 0.6759 },
       "hotspots": [
         {
           "id": "scene22-to-scene21",
@@ -841,10 +834,10 @@
         {
           "id": "scene22-to-scene06",
           "type": "scene",
-          "target": "scene06",
-          "yaw": 2.95,
-          "pitch": 0.22,
-          "label": "로비로 나가기"
+          "target": "scene05",
+          "yaw": -3.038,
+          "pitch": 0.102,
+          "label": "정원 입구"
         }
       ]
     }

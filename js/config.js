@@ -41,27 +41,47 @@ const DEFAULT_MINIMAP = {
   pin: 'assets/icons/pin.svg',
   pinActive: 'assets/icons/pin-active.svg',
   width: 260,                             // px, at desktop sizes
+  // Anchored to a corner rather than given absolute coordinates, so the panel
+  // keeps its margin when the window is resized.
+  position: { corner: 'bottom-right', x: 16, y: 16 },
   startCollapsed: false
 };
 
-/** Hotspot types this build knows how to render. */
-export const HOTSPOT_TYPES = ['scene', 'youtube', 'info'];
+/** The corners the minimap can be anchored to. */
+export const MINIMAP_CORNERS = ['bottom-right', 'bottom-left', 'top-right', 'top-left'];
 
-/** YouTube ids are 11 chars of [A-Za-z0-9_-]. Anything else is rejected. */
-const YOUTUBE_ID_RE = /^[A-Za-z0-9_-]{11}$/;
+/** Panel width limits, in px. Shared with the editor's size control. */
+export const MINIMAP_WIDTH_RANGE = { min: 140, max: 560 };
+
+/** Hotspot types this build knows how to render. */
+export const HOTSPOT_TYPES = ['scene', 'vimeo', 'info'];
+
+/** Vimeo ids are numeric. Anything else is rejected. */
+const VIMEO_ID_RE = /^\d{6,12}$/;
+/** Unlisted videos carry a short alphanumeric privacy hash beside the id. */
+const VIMEO_HASH_RE = /^[A-Za-z0-9]{6,16}$/;
 
 /**
- * Accepts a bare video id or a common YouTube URL and returns the id.
+ * Accepts a bare video id, "id/hash", or a Vimeo URL and returns
+ * `{id, hash}` — hash is null for a public video.
+ *
  * Returns null when nothing safe can be extracted — callers must handle null
- * rather than passing an arbitrary string into an iframe src.
+ * rather than passing an arbitrary string into an iframe src. The hash is kept
+ * because an unlisted video refuses to play without it.
  */
-export function extractYouTubeId(value) {
+export function extractVimeoVideo(value) {
   if (typeof value !== 'string') return null;
   const raw = value.trim();
   if (!raw) return null;
-  if (YOUTUBE_ID_RE.test(raw)) return raw;
 
-  // Try the URL forms: youtu.be/ID, /watch?v=ID, /embed/ID, /shorts/ID
+  const build = (id, hash) => (VIMEO_ID_RE.test(id || '')
+    ? { id, hash: hash && VIMEO_HASH_RE.test(hash) ? hash : null }
+    : null);
+
+  // Bare "123456789", or "123456789/abcdef0123" as Vimeo's share box writes it.
+  const bare = /^(\d{6,12})(?:\/([A-Za-z0-9]+))?$/.exec(raw);
+  if (bare) return build(bare[1], bare[2]);
+
   let url;
   try {
     url = new URL(raw, window.location.href);
@@ -69,19 +89,15 @@ export function extractYouTubeId(value) {
     return null;
   }
   const host = url.hostname.replace(/^www\./, '');
-  const allowedHosts = ['youtube.com', 'm.youtube.com', 'youtube-nocookie.com', 'youtu.be'];
-  if (!allowedHosts.includes(host)) return null;
+  if (host !== 'vimeo.com' && host !== 'player.vimeo.com') return null;
 
-  let candidate = null;
-  if (host === 'youtu.be') {
-    candidate = url.pathname.slice(1);
-  } else if (url.searchParams.has('v')) {
-    candidate = url.searchParams.get('v');
-  } else {
-    const match = url.pathname.match(/^\/(?:embed|shorts|v)\/([^/?#]+)/);
-    if (match) candidate = match[1];
-  }
-  return candidate && YOUTUBE_ID_RE.test(candidate) ? candidate : null;
+  // The id is the first all-digit segment, which covers vimeo.com/ID,
+  // /channels/name/ID, /groups/name/videos/ID and player.vimeo.com/video/ID.
+  // A privacy hash follows it in the path (vimeo.com/ID/HASH) or in ?h=.
+  const segments = url.pathname.split('/').filter(Boolean);
+  const index = segments.findIndex((segment) => VIMEO_ID_RE.test(segment));
+  if (index === -1) return null;
+  return build(segments[index], url.searchParams.get('h') || segments[index + 1] || null);
 }
 
 function isFiniteNumber(value) {
@@ -128,8 +144,31 @@ function normalizeMinimap(raw) {
     pin: text(raw.pin, DEFAULT_MINIMAP.pin),
     pinActive: text(raw.pinActive, DEFAULT_MINIMAP.pinActive),
     // Clamped: a minimap wider than a phone would cover the panorama.
-    width: Math.round(clamp(numberOr(raw.width, DEFAULT_MINIMAP.width), 140, 520)),
+    width: Math.round(clamp(numberOr(raw.width, DEFAULT_MINIMAP.width),
+                            MINIMAP_WIDTH_RANGE.min, MINIMAP_WIDTH_RANGE.max)),
+    position: normalizeMinimapPosition(raw.position),
     startCollapsed: raw.startCollapsed === true
+  };
+}
+
+/**
+ * Where the minimap panel sits: which corner it hangs off, and how far in from
+ * that corner. Offsets are capped so a bad value cannot park the panel outside
+ * the window with no way back short of editing the file.
+ */
+function normalizeMinimapPosition(raw) {
+  const fallback = DEFAULT_MINIMAP.position;
+  if (!raw || typeof raw !== 'object') return Object.assign({}, fallback);
+
+  const corner = MINIMAP_CORNERS.includes(raw.corner) ? raw.corner : fallback.corner;
+  if (raw.corner != null && corner !== raw.corner) {
+    console.warn(`[tour] settings.minimap.position.corner "${raw.corner}" is not one of ` +
+                 `${MINIMAP_CORNERS.join(', ')} — using "${fallback.corner}".`);
+  }
+  return {
+    corner,
+    x: Math.round(clamp(numberOr(raw.x, fallback.x), 0, 2000)),
+    y: Math.round(clamp(numberOr(raw.y, fallback.y), 0, 2000))
   };
 }
 
@@ -198,14 +237,15 @@ function normalizeHotspot(raw, scene, index) {
     }
   }
 
-  if (raw.type === 'youtube') {
-    const videoId = extractYouTubeId(raw.videoId != null ? raw.videoId : raw.url);
-    if (!videoId) {
-      console.warn(`[tour] ${where}: missing or invalid YouTube video id ` +
+  if (raw.type === 'vimeo') {
+    const video = extractVimeoVideo(raw.videoId != null ? raw.videoId : raw.url);
+    if (!video) {
+      console.warn(`[tour] ${where}: missing or invalid Vimeo video id ` +
                    `(${JSON.stringify(raw.videoId)}) — skipped.`);
       return null;
     }
-    hotspot.videoId = videoId;
+    hotspot.videoId = video.id;
+    hotspot.videoHash = video.hash;
     hotspot.title = typeof raw.title === 'string' ? raw.title : (hotspot.label || 'Video');
     if (isFiniteNumber(raw.start)) hotspot.start = Math.max(0, Math.floor(raw.start));
   }

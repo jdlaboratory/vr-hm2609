@@ -20,8 +20,8 @@ const ICONS = {
          'fill="none" stroke="currentColor" stroke-width="1.9" ' +
          'stroke-linecap="round" stroke-linejoin="round"/></svg>',
 
-  youtube: '<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">' +
-           '<path d="M9.5 7.6 L17 12 L9.5 16.4 Z" fill="currentColor"/></svg>',
+  vimeo: '<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">' +
+         '<path d="M9.5 7.6 L17 12 L9.5 16.4 Z" fill="currentColor"/></svg>',
 
   info: '<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">' +
         '<circle cx="12" cy="7.4" r="1.25" fill="currentColor"/>' +
@@ -97,8 +97,8 @@ const RENDERERS = {
     return button;
   },
 
-  /** Opens the YouTube modal. */
-  youtube(hotspot, handlers) {
+  /** Opens the Vimeo modal. */
+  vimeo(hotspot, handlers) {
     const button = createHotspotButton(hotspot, {
       accessibleName: hotspot.label || `Play video: ${hotspot.title}`,
       extraClass: 'hotspot-video'

@@ -20,11 +20,69 @@
  * write to disk; anywhere else it falls back to downloading the file.
  */
 
-import { linkRaw } from './config.js';
+import { linkRaw, extractVimeoVideo, MINIMAP_CORNERS, MINIMAP_WIDTH_RANGE } from './config.js';
+
+/** Korean names for the hotspot types, shared by the picker and the list. */
+const HOTSPOT_TYPE_LABELS = {
+  scene: '이동 (다른 장면)',
+  vimeo: '비메오 영상',
+  info: '정보 패널'
+};
+
+/** Labels for the four corners the minimap panel can hang off. */
+const CORNER_LABELS = {
+  'bottom-right': '우측 하단',
+  'bottom-left': '좌측 하단',
+  'top-right': '우측 상단',
+  'top-left': '좌측 상단'
+};
 
 /** Where the dev server accepts the edited file. Relative: the tour may be
  *  served from a subdirectory. */
 const SAVE_ENDPOINT = 'api/tour-config';
+
+/** Where the dev server lists the panoramas a new viewpoint could use. */
+const PANORAMA_ENDPOINT = 'api/panoramas';
+
+/**
+ * Builds the panorama block for a new scene by copying an existing one and
+ * swapping the scene id through it, so a tour on multires tiles or on a
+ * non-default path keeps working without the editor knowing what it uses.
+ */
+function clonePanorama(template, sceneId) {
+  const source = (template && template._raw && template._raw.panorama) ||
+                 (template && template.panorama) || {};
+  const clone = JSON.parse(JSON.stringify(source));
+  const swap = (value) =>
+    (typeof value === 'string' && value.includes(template.id)
+      ? value.split(template.id).join(sceneId)
+      : null);
+
+  const url = swap(clone.url);
+  const path = swap(clone.path);
+  if (url) clone.url = url;
+  if (path) clone.path = path;
+  // The template's own id was nowhere in its paths, so there is nothing to
+  // swap: fall back to this project's layout rather than reuse its picture.
+  if (!url && !path) {
+    clone.type = 'equirectangular';
+    clone.url = `assets/panoramas/equirect/${sceneId}_{z}.jpg`;
+    delete clone.path;
+  }
+  return clone;
+}
+
+/** The last segment of a path: `assets/source-panoramas/006.jpg` → `006.jpg`. */
+function basename(path) {
+  return typeof path === 'string' ? path.split('/').pop() : '';
+}
+
+/** `scene09a` → `assets/source-panoramas/009a.jpg`, the note every scene carries. */
+function sourceNoteFor(sceneId) {
+  const match = /^scene(\d+)([a-z]*)$/i.exec(sceneId);
+  if (!match) return null;
+  return `assets/source-panoramas/${match[1].padStart(3, '0')}${match[2].toLowerCase()}.jpg`;
+}
 
 /** Radians rounded to 3 decimals — finer than anyone can aim. */
 function round(value) {
@@ -80,6 +138,7 @@ export function formatTourJson(raw) {
   };
   collapse('initialView');
   collapse('map');
+  collapse('position');
 
   text = text.replace(/\{\n\s*"width": (\d+)\n\s*\}/g, '{ "width": $1 }');
   text = text.replace(
@@ -103,7 +162,10 @@ export class Editor {
     this.panoElement = panoElement;
     this.hotspots = services.hotspots;
     this.minimap = services.minimap || null;
+    this.ui = services.ui || null;
     this.onNavigate = services.onNavigate;
+    /** Panorama ids on disk; null until the server answers, or if it cannot. */
+    this.panoramasOnDisk = null;
 
     this.scene = null;
     this.selected = null;
@@ -122,9 +184,14 @@ export class Editor {
     if (this.minimap) {
       this.minimap.setEditable(true);
       this.minimap.onPlace((sceneId, position) => this._placeScene(sceneId, position));
+      // The panel writes its own geometry as it is dragged; mirror it into the
+      // file and the readout.
+      this.minimap.onMove((position) => this._setPanelPosition(position));
     }
 
     document.body.classList.add('editor-active');
+    this._probeSaving();
+    this._probePanoramas();
     console.info('[tour] Editor mode active (?edit=1). Remove the query parameter for production.');
   }
 
@@ -152,9 +219,13 @@ export class Editor {
 
     this._buildViewSection(body);
     body.appendChild(el('hr', 'editor-rule'));
+    this._buildSceneSection(body);
+    body.appendChild(el('hr', 'editor-rule'));
     this._buildHotspotSection(body);
     body.appendChild(el('hr', 'editor-rule'));
     this._buildMapSection(body);
+    body.appendChild(el('hr', 'editor-rule'));
+    this._buildPanelSection(body);
     body.appendChild(el('hr', 'editor-rule'));
     this._buildSaveSection(body);
 
@@ -209,6 +280,352 @@ export class Editor {
     this._status(`시작 화면을 현재 시점으로 지정했습니다.`, 'ok');
   }
 
+  // --- the scene (viewpoint) itself --------------------------------------
+
+  _buildSceneSection(body) {
+    const heading = el('div', 'editor-section-head');
+    heading.appendChild(el('span', 'editor-label', '포인트'));
+    this.sceneCountOut = el('span', 'editor-count', '0');
+    heading.appendChild(this.sceneCountOut);
+    body.appendChild(heading);
+
+    this.nameInput = this._field(body, '이름', () => {
+      const input = document.createElement('input');
+      input.type = 'text';
+      input.placeholder = '예: 중앙 로비';
+      input.addEventListener('input', () => this._renameScene(input.value));
+      return input;
+    });
+
+    // Which photo this viewpoint is: the one thing the name alone cannot tell
+    // you when you are matching the tour against a folder of originals.
+    this.sceneFileOut = el('p', 'editor-file', '—');
+    body.appendChild(this.sceneFileOut);
+
+    // --- add -------------------------------------------------------------
+    const addRow = el('label', 'editor-row');
+    addRow.appendChild(el('span', 'editor-label', '추가할 파노라마'));
+    const addControls = el('div', 'editor-inline');
+    this.panoramaSelect = document.createElement('select');
+    addControls.appendChild(this.panoramaSelect);
+    this.addSceneBtn = el('button', 'editor-btn editor-btn-primary', '추가');
+    this.addSceneBtn.type = 'button';
+    this.addSceneBtn.addEventListener('click', () => this._addScene(this.panoramaSelect.value));
+    addControls.appendChild(this.addSceneBtn);
+    addRow.appendChild(addControls);
+    body.appendChild(addRow);
+
+    // --- delete ----------------------------------------------------------
+    const actions = el('div', 'editor-actions');
+    this.deleteSceneBtn = el('button', 'editor-btn editor-btn-danger', '이 포인트 삭제');
+    this.deleteSceneBtn.type = 'button';
+    this.deleteSceneBtn.addEventListener('click', () => this._deleteScene());
+    actions.appendChild(this.deleteSceneBtn);
+    body.appendChild(actions);
+
+    this.sceneNote = el('p', 'editor-note', '');
+    body.appendChild(this.sceneNote);
+  }
+
+  /**
+   * Asks the server which panoramas exist on disk. Anything not already in the
+   * tour becomes an option under "추가할 파노라마" — a viewpoint cannot be
+   * invented, it has to have a picture behind it.
+   */
+  async _probePanoramas() {
+    let info = null;
+    try {
+      const response = await fetch(PANORAMA_ENDPOINT, { cache: 'no-store' });
+      if (response.ok) info = await response.json().catch(() => null);
+    } catch (err) {
+      /* static host, or no such endpoint */
+    }
+    this.panoramasOnDisk = info && Array.isArray(info.scenes) ? info.scenes : null;
+    this._renderSceneSection();
+  }
+
+  /**
+   * Names the photo behind the current scene. Prefers the "_source" note — the
+   * original the tour was built from — and falls back to the web copy, so the
+   * line is never empty even for a scene that never had the note.
+   */
+  _renderSceneFile() {
+    const scene = this.scene;
+    if (!scene) {
+      this.sceneFileOut.textContent = '—';
+      this.sceneFileOut.removeAttribute('title');
+      return;
+    }
+    const source = scene._raw && typeof scene._raw._source === 'string'
+      ? scene._raw._source
+      : null;
+    const web = scene.panorama.url || scene.panorama.path || '';
+    this.sceneFileOut.textContent = basename(source || web) || scene.id;
+    // The full paths are one hover away rather than crowding a 300px panel.
+    this.sceneFileOut.title = [source, web].filter(Boolean).join('\n');
+  }
+
+  _renderSceneSection() {
+    const scenes = this.config.scenes;
+    this.sceneCountOut.textContent = String(scenes.length);
+    this.nameInput.value = this.scene ? this.scene.name : '';
+    this.nameInput.disabled = !this.scene;
+    this._renderSceneFile();
+    // The last scene cannot go: a tour with no scenes will not load at all.
+    this.deleteSceneBtn.disabled = !this.scene || scenes.length < 2;
+
+    const select = this.panoramaSelect;
+    const previous = select.value;
+    select.replaceChildren();
+
+    if (this.panoramasOnDisk === null) {
+      const option = document.createElement('option');
+      option.textContent = '목록을 받지 못함';
+      select.appendChild(option);
+      select.disabled = true;
+      this.addSceneBtn.disabled = true;
+      this.sceneNote.textContent =
+        '파노라마 목록은 로컬 서버에서만 받아올 수 있습니다. ' +
+        '포인트를 추가하려면 --edit 로 실행하세요.';
+      return;
+    }
+
+    const used = new Set(scenes.map((scene) => scene.id));
+    const free = this.panoramasOnDisk.filter((id) => !used.has(id));
+    free.forEach((id) => {
+      const option = document.createElement('option');
+      option.value = id;
+      option.textContent = id;
+      select.appendChild(option);
+    });
+    if (free.includes(previous)) select.value = previous;
+
+    const none = free.length === 0;
+    if (none) {
+      const option = document.createElement('option');
+      option.textContent = '남은 파노라마 없음';
+      select.appendChild(option);
+    }
+    select.disabled = none;
+    this.addSceneBtn.disabled = none;
+    this.sceneNote.textContent = none
+      ? 'assets/panoramas/equirect/ 의 파노라마가 모두 투어에 들어가 있습니다. ' +
+        '새 사진을 넣고 tools/make-web-equirect.ps1 을 돌리면 여기에 나타납니다.'
+      : '이름은 장면 메뉴와 화살표 라벨에 함께 쓰입니다.';
+  }
+
+  _renameScene(name) {
+    if (!this.scene) return;
+    const previous = this.scene.name;
+    this.scene.name = name;
+    if (this.scene._raw) this.scene._raw.name = name;
+
+    const followed = this._followRenameInLabels(this.scene.id, previous, name);
+    this._showSceneNames();
+    if (followed) {
+      this._status(`이름을 바꾸고, 이 포인트를 가리키는 화살표 라벨 ${followed}개도 ` +
+                   `함께 고쳤습니다.`, 'ok');
+    }
+    this._markDirty();
+  }
+
+  /**
+   * Re-renders every surface that shows a scene name, from the one edit. They
+   * are listed here rather than at each call site so that adding a place a
+   * name appears is a change in one function, not a bug found later.
+   */
+  _showSceneNames() {
+    if (!this.scene) return;
+    if (this.ui) {
+      this.ui.setSceneName(this.scene.name);     // the title over the panorama
+      this.ui.buildSceneMenu(this.config.scenes); // the ☰ scene list
+      this.ui.setActiveScene(this.scene.id);
+    }
+    if (this.minimap) this.minimap.rebuild();     // each pin's accessible name
+    document.title = `${this.scene.name} — Virtual Tour`;
+    this._renderHotspotList();                    // arrows listed by target name
+    this._refreshTargetOptions();                 // and chosen from those names
+  }
+
+  /**
+   * Carries a scene rename into the arrows that lead to it.
+   *
+   * An arrow's caption is its own string, not a view of the target's name — a
+   * label like "로비로 나가기" is deliberately not the name of the lobby. So
+   * only the labels that were *showing* the old name, exactly, are rewritten;
+   * anything someone phrased differently is left as they wrote it.
+   *
+   * @returns {number} how many labels followed the rename
+   */
+  _followRenameInLabels(sceneId, previousName, name) {
+    if (previousName === name) return 0;
+    let changed = 0;
+
+    this.config.scenes.forEach((owner) => {
+      owner.hotspots.forEach((hotspot) => {
+        if (hotspot.type !== 'scene' || hotspot.target !== sceneId) return;
+
+        const mirrorsTheName = hotspot.label === previousName;
+        if (mirrorsTheName) {
+          hotspot.label = name;
+          if (hotspot._raw) {
+            if (name) hotspot._raw.label = name;
+            else delete hotspot._raw.label;
+          }
+          changed += 1;
+        }
+        // An arrow with no caption of its own is announced to screen readers
+        // as its target's name, so it needs rebuilding too — even though
+        // nothing was written to it.
+        if (mirrorsTheName || !hotspot.label) this._rerenderHotspot(owner, hotspot);
+      });
+    });
+    return changed;
+  }
+
+  /**
+   * Rebuilds one hotspot's element in place, so a change to its label, target
+   * or type shows on the panorama. A hotspot in a scene that has not been
+   * visited yet has nothing rendered to refresh, and is left to be built with
+   * the new values when the visitor arrives.
+   */
+  _rerenderHotspot(scene, hotspot) {
+    if (!this.hotspots.entryFor(hotspot)) return;
+    const wasSelected = hotspot === this.selected;
+    this.hotspots.remove(hotspot);
+    const entry = this.hotspots.add(scene, hotspot);
+    if (!entry) return;
+    this._arm(hotspot, entry.element);
+    if (wasSelected) entry.element.classList.add('is-editing');
+  }
+
+  /** Builds a new scene around a panorama that is on disk but unused. */
+  _addScene(sceneId) {
+    if (!sceneId || this.config.sceneById.has(sceneId)) return;
+
+    const template = this.scene || this.config.scenes[0];
+    // Key order matches the scenes already in the file, so the save reads as
+    // one more of the same rather than an obviously machine-written block.
+    const rawScene = { id: sceneId, name: sceneId };
+    const source = sourceNoteFor(sceneId);
+    if (source) rawScene._source = source;
+    rawScene.panorama = clonePanorama(template, sceneId);
+    rawScene.initialView = { yaw: 0, pitch: 0, fov: 1.4 };
+    // Dropped in the middle of the plan rather than nowhere, so the pin is on
+    // screen and can be dragged straight to where it belongs.
+    rawScene.map = { x: 0.5, y: 0.5 };
+    rawScene.hotspots = [];
+    const scene = linkRaw({
+      id: sceneId,
+      name: sceneId,
+      panorama: JSON.parse(JSON.stringify(rawScene.panorama)),
+      initialView: Object.assign({}, rawScene.initialView),
+      map: Object.assign({}, rawScene.map),
+      hotspots: []
+    }, rawScene);
+
+    // Next to the scene it was added from, so the menu keeps its walking order.
+    const at = this.scene ? this.config.scenes.indexOf(this.scene) + 1 : this.config.scenes.length;
+    this.config.scenes.splice(at, 0, scene);
+    this.config.sceneById.set(sceneId, scene);
+    if (Array.isArray(this.config.raw.scenes)) {
+      const rawAt = template._raw ? this.config.raw.scenes.indexOf(template._raw) + 1
+                                  : this.config.raw.scenes.length;
+      this.config.raw.scenes.splice(rawAt, 0, rawScene);
+    }
+
+    this._refreshSceneLists();
+    this._markDirty();
+    this.onNavigate(sceneId);
+    this._status(`"${sceneId}" 포인트를 추가했습니다. 이름을 정하고 안내도에서 핀을 옮기세요.`, 'ok');
+    // The name is the first thing to fix, so put the caret in it.
+    window.setTimeout(() => { this.nameInput.focus(); this.nameInput.select(); }, 0);
+  }
+
+  _deleteScene() {
+    const scene = this.scene;
+    if (!scene || this.config.scenes.length < 2) return;
+
+    const inbound = [];
+    this.config.scenes.forEach((other) => {
+      if (other === scene) return;
+      other.hotspots.forEach((hotspot) => {
+        if (hotspot.type === 'scene' && hotspot.target === scene.id) {
+          inbound.push({ scene: other, hotspot });
+        }
+      });
+    });
+
+    const detail = inbound.length
+      ? `\n이 포인트로 오는 화살표 ${inbound.length}개도 함께 지워집니다.`
+      : '';
+    if (!window.confirm(`"${scene.name}" (${scene.id}) 포인트를 삭제할까요?${detail}`)) return;
+
+    // Leave first: Marzipano will not destroy the scene it is displaying.
+    const remaining = this.config.scenes.filter((other) => other !== scene);
+    const next = remaining[Math.min(this.config.scenes.indexOf(scene), remaining.length - 1)];
+    this.onNavigate(next.id);
+
+    inbound.forEach(({ scene: owner, hotspot }) => {
+      this.hotspots.remove(hotspot);
+      const index = owner.hotspots.indexOf(hotspot);
+      if (index >= 0) owner.hotspots.splice(index, 1);
+      if (owner._raw && Array.isArray(owner._raw.hotspots)) {
+        const rawIndex = owner._raw.hotspots.indexOf(hotspot._raw);
+        if (rawIndex >= 0) owner._raw.hotspots.splice(rawIndex, 1);
+      }
+    });
+
+    const at = this.config.scenes.indexOf(scene);
+    if (at >= 0) this.config.scenes.splice(at, 1);
+    this.config.sceneById.delete(scene.id);
+    if (Array.isArray(this.config.raw.scenes) && scene._raw) {
+      const rawAt = this.config.raw.scenes.indexOf(scene._raw);
+      if (rawAt >= 0) this.config.raw.scenes.splice(rawAt, 1);
+    }
+    this.tour.forgetScene(scene.id);
+
+    // A tour whose defaultScene no longer exists falls back to the first scene
+    // with a console warning; say so in the file instead.
+    if (this.config.settings.defaultScene === scene.id) {
+      this.config.settings.defaultScene = next.id;
+      if (this.config.raw.settings) this.config.raw.settings.defaultScene = next.id;
+    }
+
+    this._refreshSceneLists();
+    this._markDirty();
+    this._status(`"${scene.name}" 포인트를 삭제했습니다` +
+                 (inbound.length ? ` (화살표 ${inbound.length}개 포함).` : '.'), 'ok');
+  }
+
+  /** Re-renders everything that lists scenes: menu, minimap pins, this panel. */
+  _refreshSceneLists() {
+    if (this.ui) {
+      this.ui.buildSceneMenu(this.config.scenes);
+      if (this.scene) this.ui.setActiveScene(this.scene.id);
+    }
+    if (this.minimap) this.minimap.rebuild();
+    this._renderSceneSection();
+    this._renderHotspotList();
+    this._refreshTargetOptions();
+  }
+
+  /** Keeps the hotspot form's "대상 장면" list in step with the scene list. */
+  _refreshTargetOptions() {
+    const select = this.targetSelect;
+    if (!select) return;
+    const previous = select.value;
+    select.replaceChildren();
+    this.config.scenes.forEach((scene) => {
+      const option = document.createElement('option');
+      option.value = scene.id;
+      option.textContent = `${scene.name} (${scene.id})`;
+      select.appendChild(option);
+    });
+    if (this.config.sceneById.has(previous)) select.value = previous;
+    else if (this.selected && this.selected.type === 'scene') select.value = this.selected.target;
+  }
+
   // --- navigation points -------------------------------------------------
 
   _buildHotspotSection(body) {
@@ -233,12 +650,10 @@ export class Editor {
 
     this.typeSelect = this._field(this.form, '종류', () => {
       const select = document.createElement('select');
-      [['scene', '이동 (다른 장면)'],
-       ['youtube', '유튜브 영상'],
-       ['info', '정보 패널']].forEach(([value, text]) => {
+      Object.keys(HOTSPOT_TYPE_LABELS).forEach((value) => {
         const option = document.createElement('option');
         option.value = value;
-        option.textContent = text;
+        option.textContent = HOTSPOT_TYPE_LABELS[value];
         select.appendChild(option);
       });
       select.addEventListener('change', () => this._changeType(select.value));
@@ -253,10 +668,7 @@ export class Editor {
         option.textContent = `${scene.name} (${scene.id})`;
         select.appendChild(option);
       });
-      select.addEventListener('change', () => {
-        this._writeField('target', select.value);
-        this._rebuildSelected();
-      });
+      select.addEventListener('change', () => this._changeTarget(select.value));
       return select;
     }, 'row-scene');
 
@@ -272,13 +684,13 @@ export class Editor {
       return input;
     });
 
-    this.videoInput = this._field(this.form, '영상 ID 또는 URL', () => {
+    this.videoInput = this._field(this.form, '비메오 영상 ID 또는 주소', () => {
       const input = document.createElement('input');
       input.type = 'text';
-      input.placeholder = 'dQw4w9WgXcQ';
-      input.addEventListener('input', () => this._writeField('videoId', input.value.trim()));
+      input.placeholder = '76979871 또는 https://vimeo.com/76979871';
+      input.addEventListener('input', () => this._writeVideo(input.value.trim()));
       return input;
-    }, 'row-youtube');
+    }, 'row-vimeo');
 
     this.titleInput = this._field(this.form, '제목', () => {
       const input = document.createElement('input');
@@ -286,7 +698,7 @@ export class Editor {
       input.placeholder = '이 공간에 대하여';
       input.addEventListener('input', () => this._writeField('title', input.value));
       return input;
-    }, 'row-info row-youtube');
+    }, 'row-info row-vimeo');
 
     this.contentInput = this._field(this.form, '내용', () => {
       const area = document.createElement('textarea');
@@ -348,7 +760,7 @@ export class Editor {
 
       const target = hotspot.type === 'scene'
         ? (this.config.sceneById.get(hotspot.target) || {}).name || hotspot.target
-        : hotspot.type;
+        : HOTSPOT_TYPE_LABELS[hotspot.type] || hotspot.type;
       button.appendChild(el('span', 'editor-list-name', hotspot.label || hotspot.id));
       button.appendChild(el('span', 'editor-list-meta', target));
 
@@ -399,13 +811,14 @@ export class Editor {
 
     this.typeSelect.value = hotspot.type;
     show(this.targetSelect, hotspot.type === 'scene');
-    show(this.videoInput, hotspot.type === 'youtube');
+    show(this.videoInput, hotspot.type === 'vimeo');
     show(this.titleInput, hotspot.type !== 'scene');
     show(this.contentInput, hotspot.type === 'info');
 
     if (hotspot.type === 'scene') this.targetSelect.value = hotspot.target;
     this.labelInput.value = hotspot.label || '';
-    this.videoInput.value = hotspot.videoId || '';
+    // Show the address as it was typed, not just the id parsed out of it.
+    this.videoInput.value = (hotspot._raw && hotspot._raw.videoId) || hotspot.videoId || '';
     this.titleInput.value = hotspot.title || '';
     this.contentInput.value = hotspot.content || '';
 
@@ -432,6 +845,48 @@ export class Editor {
     this._markDirty();
   }
 
+  /**
+   * Takes a Vimeo id or a full address. The file keeps what was typed, which
+   * is easier to read back; the live model keeps only the id and privacy hash
+   * parsed out of it, so nothing unchecked can reach the iframe src. A value
+   * that parses to nothing leaves the id empty, and _validate refuses to save.
+   */
+  _writeVideo(value) {
+    const hotspot = this.selected;
+    if (!hotspot) return;
+    const video = extractVimeoVideo(value);
+    hotspot.videoId = video ? video.id : '';
+    hotspot.videoHash = video ? video.hash : null;
+    if (hotspot._raw) {
+      if (value) hotspot._raw.videoId = value;
+      else delete hotspot._raw.videoId;
+    }
+    this._status(!value || video ? '' : '비메오 주소를 알아볼 수 없습니다.',
+                 !value || video ? null : 'warn');
+    this._markDirty();
+  }
+
+  /**
+   * Points the selected arrow somewhere else. A caption that was showing the
+   * old destination's name — or no caption at all — follows to the new one;
+   * a caption someone phrased themselves is left exactly as written.
+   */
+  _changeTarget(targetId) {
+    const hotspot = this.selected;
+    if (!hotspot) return;
+    const previous = this.config.sceneById.get(hotspot.target);
+    const next = this.config.sceneById.get(targetId);
+
+    const mirrored = !hotspot.label || (previous && hotspot.label === previous.name);
+    this._writeField('target', targetId);
+    if (next && mirrored) {
+      this._writeField('label', next.name);
+      this.labelInput.value = next.name;
+    }
+    this._rebuildSelected();
+    this._renderHotspotList();
+  }
+
   _changeType(type) {
     const hotspot = this.selected;
     if (!hotspot || hotspot.type === type) return;
@@ -440,8 +895,8 @@ export class Editor {
     if (type === 'scene' && !hotspot.target) {
       this._writeField('target', this.targetSelect.value || this.config.scenes[0].id);
     }
-    if (type === 'youtube' && !hotspot.videoId) {
-      this._status('유튜브 영상 ID를 입력해야 저장 후에도 표시됩니다.', 'warn');
+    if (type === 'vimeo' && !hotspot.videoId) {
+      this._status('비메오 영상 주소를 입력해야 저장 후에도 표시됩니다.', 'warn');
     }
     this._rebuildSelected();
     this._renderForm();
@@ -450,14 +905,8 @@ export class Editor {
 
   /** Re-renders the selected hotspot's DOM after a change of type/label/target. */
   _rebuildSelected() {
-    const hotspot = this.selected;
-    if (!hotspot || !this.scene) return;
-    this.hotspots.remove(hotspot);
-    const entry = this.hotspots.add(this.scene, hotspot);
-    if (entry) {
-      this._arm(hotspot, entry.element);
-      entry.element.classList.add('is-editing');
-    }
+    if (!this.selected || !this.scene) return;
+    this._rerenderHotspot(this.scene, this.selected);
     this._markDirty();
   }
 
@@ -467,17 +916,22 @@ export class Editor {
 
     // New points land in the middle of the screen, a little below the horizon:
     // where a floor-level arrow usually belongs.
-    // No "label" key until there is a label to put in it: an empty string would
-    // be written to the file and read back as a hotspot with a blank caption.
+    // A new arrow is captioned with where it goes. An empty caption would leave
+    // a hotspot that says nothing on hover and announces nothing useful — and
+    // the destination's name is what nearly every caption in a tour says.
+    const target = this._suggestTarget();
     const rawHotspot = {
       id: this._uniqueHotspotId(),
       type: 'scene',
-      target: this._suggestTarget(),
+      target,
       yaw: round(view.yaw),
       pitch: round(Math.max(view.pitch, 0.2))
     };
+    const label = (this.config.sceneById.get(target) || {}).name || '';
+    if (label) rawHotspot.label = label;
+
     const hotspot = linkRaw(Object.assign({}, rawHotspot, {
-      label: '', icon: null, perspective: null
+      label, icon: null, perspective: null
     }), rawHotspot);
 
     this.scene.hotspots.push(hotspot);
@@ -681,7 +1135,7 @@ export class Editor {
 
   _buildMapSection(body) {
     const heading = el('div', 'editor-section-head');
-    heading.appendChild(el('span', 'editor-label', '미니맵 위치'));
+    heading.appendChild(el('span', 'editor-label', '미니맵 핀 위치'));
     body.appendChild(heading);
 
     this.mapOut = el('p', 'editor-picked', '—');
@@ -729,6 +1183,116 @@ export class Editor {
     this.clearMapBtn.disabled = !this.minimap || !position;
   }
 
+  // --- the minimap panel itself -----------------------------------------
+
+  _buildPanelSection(body) {
+    const heading = el('div', 'editor-section-head');
+    heading.appendChild(el('span', 'editor-label', '미니맵 패널'));
+    this.panelWidthOut = el('span', 'editor-count', '—');
+    heading.appendChild(this.panelWidthOut);
+    body.appendChild(heading);
+
+    const row = el('label', 'editor-row');
+    row.appendChild(el('span', 'editor-label', '크기'));
+    this.widthInput = document.createElement('input');
+    this.widthInput.type = 'range';
+    this.widthInput.min = String(MINIMAP_WIDTH_RANGE.min);
+    this.widthInput.max = String(MINIMAP_WIDTH_RANGE.max);
+    this.widthInput.step = '4';
+    this.widthInput.addEventListener('input',
+      () => this._setPanelWidth(Number(this.widthInput.value)));
+    row.appendChild(this.widthInput);
+    body.appendChild(row);
+
+    this.cornerSelect = this._field(body, '기준 모서리', () => {
+      const select = document.createElement('select');
+      MINIMAP_CORNERS.forEach((corner) => {
+        const option = document.createElement('option');
+        option.value = corner;
+        option.textContent = CORNER_LABELS[corner] || corner;
+        select.appendChild(option);
+      });
+      select.addEventListener('change', () => {
+        const current = this._panelGeometry();
+        this._setPanelPosition({ corner: select.value, x: current.x, y: current.y });
+      });
+      return select;
+    });
+
+    this.panelPosOut = el('p', 'editor-picked', '—');
+    body.appendChild(this.panelPosOut);
+
+    const actions = el('div', 'editor-actions');
+    this.resetPanelBtn = el('button', 'editor-btn', '처음 상태로');
+    this.resetPanelBtn.type = 'button';
+    this.resetPanelBtn.title = '편집기를 열었을 때의 크기와 위치로 되돌립니다';
+    this.resetPanelBtn.addEventListener('click', () => {
+      const { width, corner, x, y } = this._panelGeometryAtLoad;
+      this._setPanelWidth(width);
+      this._setPanelPosition({ corner, x, y });
+    });
+    actions.appendChild(this.resetPanelBtn);
+    body.appendChild(actions);
+
+    body.appendChild(el('p', 'editor-note', this.minimap
+      ? '안내도 제목 줄을 끌면 패널이 통째로 움직이고, 놓은 자리에서 가장 가까운 ' +
+        '모서리에 붙습니다. 그 모서리로부터의 여백이 저장됩니다.'
+      : '미니맵이 꺼져 있어 조정할 것이 없습니다.'));
+
+    if (!this.minimap) {
+      this.widthInput.disabled = true;
+      this.cornerSelect.disabled = true;
+      this.resetPanelBtn.disabled = true;
+      return;
+    }
+    // Snapshot for the reset button: "back to how it was when I opened this"
+    // is more useful here than "back to the library default".
+    this._panelGeometryAtLoad = this._panelGeometry();
+    this._renderPanelGeometry();
+  }
+
+  /** The live minimap settings object, shared with js/minimap.js. */
+  _panelGeometry() {
+    const minimap = this.config.settings.minimap;
+    return { width: minimap.width, ...minimap.position };
+  }
+
+  /** settings.minimap as it appears in tour.json, or null if it is not there. */
+  _minimapRaw() {
+    const settings = this.config.raw && this.config.raw.settings;
+    if (!settings || !settings.minimap || typeof settings.minimap !== 'object') return null;
+    return settings.minimap;
+  }
+
+  _setPanelWidth(width) {
+    if (!this.minimap) return;
+    const raw = this._minimapRaw();
+    if (raw) raw.width = width;
+    this.minimap.setWidth(width);
+    this._renderPanelGeometry();
+    this._markDirty();
+  }
+
+  _setPanelPosition(position) {
+    if (!this.minimap) return;
+    const raw = this._minimapRaw();
+    if (raw) raw.position = { corner: position.corner, x: position.x, y: position.y };
+    this.minimap.setPosition(position);
+    this._renderPanelGeometry();
+    this._markDirty();
+  }
+
+  _renderPanelGeometry() {
+    if (!this.minimap) return;
+    const geometry = this._panelGeometry();
+    this.panelWidthOut.textContent = `${geometry.width}px`;
+    this.widthInput.value = String(geometry.width);
+    this.cornerSelect.value = geometry.corner;
+    this.panelPosOut.textContent =
+      `${CORNER_LABELS[geometry.corner] || geometry.corner} · ` +
+      `가로 ${geometry.x}px · 세로 ${geometry.y}px`;
+  }
+
   // --- saving ------------------------------------------------------------
 
   _buildSaveSection(body) {
@@ -754,6 +1318,36 @@ export class Editor {
     this.statusOut = el('p', 'editor-status', '');
     this.statusOut.setAttribute('role', 'status');
     body.appendChild(this.statusOut);
+
+    this.saveNote = el('p', 'editor-note', '저장 가능 여부를 확인하는 중…');
+    body.appendChild(this.saveNote);
+  }
+
+  /**
+   * Asks the server, at startup, whether it will accept a save — so "you are
+   * running a read-only server" is on screen before an hour of edits, not
+   * after pressing 저장. A static host simply has no such endpoint.
+   */
+  async _probeSaving() {
+    let info = null;
+    try {
+      const response = await fetch(SAVE_ENDPOINT, { cache: 'no-store' });
+      if (response.ok) info = await response.json().catch(() => null);
+    } catch (err) {
+      /* no server, or nothing listening on that path */
+    }
+
+    this.canSave = Boolean(info && info.save === true);
+    if (this.canSave) {
+      this.saveNote.className = 'editor-note';
+      this.saveNote.textContent = '저장하면 config/tour.json 에 바로 반영됩니다.';
+      return;
+    }
+    this.saveNote.className = 'editor-note is-warn';
+    this.saveNote.textContent =
+      '이 서버는 저장을 받지 않습니다. --edit 를 붙여 다시 실행하세요 ' +
+      '(예: start-windows.bat --edit). 그 전까지는 "내려받기"를 쓰세요.';
+    this.saveBtn.title = '서버를 --edit 로 실행해야 저장할 수 있습니다';
   }
 
   _markDirty() {
@@ -774,8 +1368,8 @@ export class Editor {
         if (hotspot.type === 'scene' && !this.config.sceneById.has(hotspot.target)) {
           problems.push(`${scene.id}/${hotspot.id}: 대상 장면 "${hotspot.target}" 없음`);
         }
-        if (hotspot.type === 'youtube' && !hotspot.videoId) {
-          problems.push(`${scene.id}/${hotspot.id}: 영상 ID 비어 있음`);
+        if (hotspot.type === 'vimeo' && !hotspot.videoId) {
+          problems.push(`${scene.id}/${hotspot.id}: 비메오 영상 주소가 비었거나 잘못됨`);
         }
       });
     });
@@ -803,7 +1397,10 @@ export class Editor {
       });
     } catch (err) {
       this.saveBtn.disabled = false;
-      this._status('로컬 서버에 연결하지 못했습니다. 대신 파일을 내려받으세요.', 'error');
+      // Either nothing is listening, or the server closed the connection on us.
+      // The usual cause by far is a server started without --edit.
+      this._status('서버에 저장하지 못했습니다. --edit 로 실행 중인지 확인하거나 ' +
+                   '"내려받기"를 쓰세요.', 'error');
       console.warn('[tour] Save request failed:', err);
       return;
     }
@@ -817,8 +1414,11 @@ export class Editor {
       return;
     }
 
-    const detail = await response.text().catch(() => '');
-    if (response.status === 404 || response.status === 405) {
+    const detail = (await response.text().catch(() => '')).trim();
+    if (response.status === 403) {
+      // The server says saving is off; it also says how to turn it on.
+      this._status(detail || '저장이 꺼져 있습니다. 서버를 --edit 로 실행하세요.', 'error');
+    } else if (response.status === 404 || response.status === 405) {
       this._status('이 서버는 저장을 지원하지 않습니다. ' +
                    'tools/serve.py --edit 로 실행하거나 파일을 내려받으세요.', 'error');
     } else {
@@ -860,6 +1460,7 @@ export class Editor {
     this._armScene(scene);
     this._select(null);
     this._renderMap();
+    this._renderSceneSection();
   }
 }
 

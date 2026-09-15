@@ -187,6 +187,28 @@ export class Tour {
     return true;
   }
 
+  /**
+   * Drops a scene from the viewer entirely: used by the editor when a scene is
+   * deleted, so that re-adding the same id later builds a fresh one instead of
+   * reviving the cached panorama.
+   * @param {string} id
+   */
+  forgetScene(id) {
+    const entry = this._scenes.get(id);
+    if (!entry) return;
+    this._scenes.delete(id);
+    if (this._currentId === id) this._currentId = null;
+    try {
+      if (this.viewer.hasScene(entry.marzipanoScene)) {
+        this.viewer.destroyScene(entry.marzipanoScene);
+      }
+    } catch (err) {
+      // Marzipano refuses to destroy the scene it is displaying. The caller
+      // switches away first; if that failed, leaking one scene beats throwing.
+      console.warn(`[tour] Could not destroy scene "${id}":`, err && err.message);
+    }
+  }
+
   /** Restores a scene's configured initialView (used by the editor's reset). */
   resetView(id = this._currentId) {
     const entry = this._scenes.get(id);

@@ -34,6 +34,29 @@ const SAVE_PATH = '/api/tour-config';
 const CONFIG_FILE = path.join(PROJECT_ROOT, 'config', 'tour.json');
 const MAX_CONFIG_BYTES = 8 * 1024 * 1024;
 
+// Read-only: the editor asks what panoramas exist so "add a viewpoint" can
+// offer the ones not in the tour yet, instead of asking for a typed path.
+const PANORAMA_PATH = '/api/panoramas';
+const PANORAMA_DIR = path.join(PROJECT_ROOT, 'assets', 'panoramas', 'equirect');
+// sceneNN_0.jpg / sceneNN_1.jpg — the level suffix is stripped to get the id.
+const PANORAMA_FILE_RE = /^(.+)_\d+\.(?:jpg|jpeg|png|webp)$/i;
+
+/** Scene ids that have a web panorama on disk, whether in the tour or not. */
+function availableSceneIds() {
+  let names;
+  try {
+    names = fs.readdirSync(PANORAMA_DIR);
+  } catch (err) {
+    return [];
+  }
+  const found = new Set();
+  for (const name of names) {
+    const match = PANORAMA_FILE_RE.exec(name);
+    if (match) found.add(match[1]);
+  }
+  return [...found].sort();
+}
+
 // Explicit content types: some systems have a broken .js registry entry, which
 // silently breaks ES modules.
 const CONTENT_TYPES = {
@@ -92,6 +115,31 @@ if (!fs.existsSync(path.join(PROJECT_ROOT, 'index.html'))) {
   process.exit(1);
 }
 
+/**
+ * Returns why `parsed` is not a usable tour, or null if it looks like one.
+ *
+ * The bar is what js/config.js needs to draw a scene: an id and a panorama
+ * block, for every scene. Checking only for a "scenes" array is not enough —
+ * one stray request with a plausible shape would replace the whole tour, and
+ * the single .bak copy is gone the second time it happens.
+ */
+function describeBadTour(parsed) {
+  if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
+    return 'the body is not a JSON object';
+  }
+  if (!Array.isArray(parsed.scenes) || !parsed.scenes.length) return 'no "scenes" array';
+  for (let i = 0; i < parsed.scenes.length; i++) {
+    const scene = parsed.scenes[i];
+    const where = `scene #${i + 1}`;
+    if (!scene || typeof scene !== 'object') return `${where} is not an object`;
+    if (typeof scene.id !== 'string' || !scene.id) return `${where} has no "id"`;
+    if (!scene.panorama || typeof scene.panorama !== 'object') {
+      return `scene "${scene.id}" has no "panorama" block`;
+    }
+  }
+  return null;
+}
+
 /** Keeps one undo copy, then replaces config/tour.json in a single step. */
 function writeConfigFile(body, done) {
   const temporary = `${CONFIG_FILE}.tmp`;
@@ -110,12 +158,9 @@ function writeConfigFile(body, done) {
 
 /** Handles `PUT /api/tour-config` from the editor's save button. */
 function handleSave(req, res) {
-  if (!options.edit) {
-    res.writeHead(403, { 'content-type': 'text/plain' })
-      .end('Saving is disabled. Restart with --edit to allow it.');
-    return;
-  }
-
+  // The body is read before anything is decided, refusals included: replying
+  // while the client is still sending can reset the connection, and the editor
+  // would report an unreachable server rather than the real reason.
   const chunks = [];
   let size = 0;
   let aborted = false;
@@ -135,6 +180,13 @@ function handleSave(req, res) {
 
   req.on('end', () => {
     if (aborted) return;
+    if (!options.edit) {
+      res.writeHead(403, { 'content-type': 'text/plain' })
+        .end('Saving is off. Restart the server with --edit ' +
+             '(for example: start-windows.bat --edit).');
+      return;
+    }
+
     const body = Buffer.concat(chunks);
     let parsed;
     try {
@@ -145,10 +197,10 @@ function handleSave(req, res) {
     }
     // Refuse anything that is not recognisably a tour, so a misdirected
     // request cannot leave the project without a config.
-    if (!parsed || typeof parsed !== 'object' ||
-        !Array.isArray(parsed.scenes) || !parsed.scenes.length) {
+    const problem = describeBadTour(parsed);
+    if (problem) {
       res.writeHead(400, { 'content-type': 'text/plain' })
-        .end('Not a tour config: no "scenes" array');
+        .end(`Not a tour config: ${problem}`);
       return;
     }
 
@@ -181,6 +233,17 @@ const server = http.createServer((req, res) => {
   }
   if (req.method !== 'GET' && req.method !== 'HEAD') {
     res.writeHead(405, { allow: 'GET, HEAD' }).end('Method not allowed');
+    return;
+  }
+  // Two small read-only endpoints for the editor.
+  if (pathname === SAVE_PATH) {          // will this server accept a save?
+    res.writeHead(200, { 'content-type': 'application/json' })
+      .end(JSON.stringify({ save: options.edit }));
+    return;
+  }
+  if (pathname === PANORAMA_PATH) {      // what panoramas could be added?
+    res.writeHead(200, { 'content-type': 'application/json' })
+      .end(JSON.stringify({ scenes: availableSceneIds() }));
     return;
   }
 

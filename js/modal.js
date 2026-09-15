@@ -1,9 +1,9 @@
 /**
- * modal.js — a single accessible dialog reused by the youtube and info
+ * modal.js — a single accessible dialog reused by the vimeo and info
  * hotspots.
  *
  * Behaviour that matters:
- *  - The YouTube iframe is created on open and REMOVED on close. Resetting src
+ *  - The Vimeo iframe is created on open and REMOVED on close. Resetting src
  *    is not enough on every browser; removing the element guarantees playback
  *    and audio stop.
  *  - Escape closes, the backdrop closes, focus is trapped while open and
@@ -72,7 +72,7 @@ export class Modal {
     document.removeEventListener('keydown', this._onKeydown, true);
     document.body.classList.remove('modal-open');
 
-    // Destroying the children is what actually stops a YouTube video.
+    // Destroying the children is what actually stops a Vimeo video.
     this.bodyEl.replaceChildren();
     this.titleEl.textContent = '';
 
@@ -111,31 +111,35 @@ export class Modal {
 }
 
 /**
- * Builds the responsive 16:9 YouTube embed.
+ * Builds the responsive 16:9 Vimeo embed.
  *
- * The src is assembled from a validated 11-character video id (see
- * extractYouTubeId in config.js), so no config string is ever passed through
- * to the iframe untouched. youtube-nocookie.com is used for privacy.
+ * The src is assembled from a validated numeric video id and privacy hash (see
+ * extractVimeoVideo in config.js), so no config string is ever passed through
+ * to the iframe untouched. `dnt=1` asks the player not to track the visitor.
  */
-export function buildYouTubeEmbed(hotspot) {
+export function buildVimeoEmbed(hotspot) {
   const wrapper = document.createElement('div');
   wrapper.className = 'video-frame';
 
   const iframe = document.createElement('iframe');
   const params = new URLSearchParams({
     autoplay: '1',
-    rel: '0',
-    modestbranding: '1',
-    playsinline: '1'
+    byline: '0',
+    portrait: '0',
+    title: '0',
+    dnt: '1'
   });
-  if (hotspot.start) params.set('start', String(hotspot.start));
+  // An unlisted video only plays when its privacy hash travels with the id.
+  if (hotspot.videoHash) params.set('h', hotspot.videoHash);
+
+  // Vimeo takes the start offset as a fragment, not as a query parameter.
+  const start = hotspot.start ? `#t=${hotspot.start}s` : '';
 
   iframe.setAttribute('src',
-    `https://www.youtube-nocookie.com/embed/${hotspot.videoId}?${params.toString()}`);
+    `https://player.vimeo.com/video/${hotspot.videoId}?${params.toString()}${start}`);
   iframe.setAttribute('title', hotspot.title || 'Video');
   iframe.setAttribute('frameborder', '0');
-  iframe.setAttribute('allow',
-    'accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture');
+  iframe.setAttribute('allow', 'autoplay; fullscreen; picture-in-picture; encrypted-media');
   iframe.setAttribute('allowfullscreen', '');
   iframe.setAttribute('referrerpolicy', 'strict-origin-when-cross-origin');
 

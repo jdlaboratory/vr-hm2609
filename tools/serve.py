@@ -24,6 +24,7 @@ import functools
 import http.server
 import json
 import os
+import re
 import shutil
 import socket
 import sys
@@ -43,6 +44,52 @@ SAVE_PATH = '/api/tour-config'
 CONFIG_FILE = os.path.join(PROJECT_ROOT, 'config', 'tour.json')
 MAX_CONFIG_BYTES = 8 * 1024 * 1024
 ALLOW_SAVE = False
+
+# Read-only: the editor asks what panoramas exist so "add a viewpoint" can
+# offer the ones not in the tour yet, instead of asking for a typed path.
+PANORAMA_PATH = '/api/panoramas'
+PANORAMA_DIR = os.path.join(PROJECT_ROOT, 'assets', 'panoramas', 'equirect')
+# sceneNN_0.jpg / sceneNN_1.jpg — the level suffix is stripped to get the id.
+PANORAMA_FILE_RE = re.compile(r'^(.+)_\d+\.(?:jpg|jpeg|png|webp)$', re.IGNORECASE)
+
+
+def available_scene_ids():
+    """Scene ids that have a web panorama on disk, whether in the tour or not."""
+    try:
+        names = os.listdir(PANORAMA_DIR)
+    except OSError:
+        return []
+    found = set()
+    for name in names:
+        match = PANORAMA_FILE_RE.match(name)
+        if match:
+            found.add(match.group(1))
+    return sorted(found)
+
+
+def describe_bad_tour(parsed):
+    """Returns why `parsed` is not a usable tour, or None if it looks like one.
+
+    The bar is what js/config.js needs to draw a scene: an id and a panorama
+    block, for every scene. Checking only for a "scenes" array is not enough —
+    one stray request with a plausible shape would replace the whole tour, and
+    the single .bak copy is gone the second time it happens.
+    """
+    if not isinstance(parsed, dict):
+        return 'the body is not a JSON object'
+    scenes = parsed.get('scenes')
+    if not isinstance(scenes, list) or not scenes:
+        return 'no "scenes" array'
+    for index, scene in enumerate(scenes):
+        where = 'scene #%d' % (index + 1)
+        if not isinstance(scene, dict):
+            return '%s is not an object' % where
+        if not isinstance(scene.get('id'), str) or not scene['id']:
+            return '%s has no "id"' % where
+        if not isinstance(scene.get('panorama'), dict):
+            return 'scene "%s" has no "panorama" block' % scene['id']
+    return None
+
 
 # Content types the tour depends on. Some Windows installations have a broken
 # registry entry for .js, which breaks ES modules, so these are set explicitly.
@@ -78,53 +125,86 @@ class TourRequestHandler(http.server.SimpleHTTPRequestHandler):
             self.send_header('Cache-Control', 'max-age=3600')
         super().end_headers()
 
+    def do_GET(self):
+        """Two small read-only endpoints for the editor, then static files."""
+        path = self.path.split('?', 1)[0]
+        if path == SAVE_PATH:            # will this server accept a save?
+            self._send_json({'save': ALLOW_SAVE})
+            return
+        if path == PANORAMA_PATH:        # what panoramas could be added?
+            self._send_json({'scenes': available_scene_ids()})
+            return
+        super().do_GET()
+
     def do_PUT(self):
         """Writes config/tour.json for the editor's save button."""
-        if self.path.split('?', 1)[0] != SAVE_PATH:
-            self.send_error(404, 'Not found')
-            return
-        if not ALLOW_SAVE:
-            self.send_error(403, 'Saving is disabled. Restart with --edit to allow it.')
-            return
-
+        # Read the body before deciding anything, refusals included: replying
+        # while the client is still sending can reset the connection, and the
+        # editor would report an unreachable server rather than the real reason.
         try:
             length = int(self.headers.get('Content-Length') or 0)
         except ValueError:
             length = 0
         if length <= 0:
-            self.send_error(411, 'A Content-Length is required')
+            self._refuse(411, 'A Content-Length is required')
             return
         if length > MAX_CONFIG_BYTES:
-            self.send_error(413, 'That is far larger than a tour config')
+            self._refuse(413, 'That is far larger than a tour config')
+            return
+        body = self.rfile.read(length)
+
+        if self.path.split('?', 1)[0] != SAVE_PATH:
+            self._refuse(404, 'Not found')
+            return
+        if not ALLOW_SAVE:
+            self._refuse(403, 'Saving is off. Restart the server with --edit '
+                              '(for example: start-windows.bat --edit).')
             return
 
-        body = self.rfile.read(length)
         try:
             parsed = json.loads(body.decode('utf-8'))
         except (UnicodeDecodeError, ValueError) as err:
-            self.send_error(400, 'Not valid JSON: %s' % err)
+            self._refuse(400, 'Not valid JSON: %s' % err)
             return
         # Refuse anything that is not recognisably a tour, so a misdirected
         # request cannot leave the project without a config.
-        if not isinstance(parsed, dict) or not isinstance(parsed.get('scenes'), list) \
-                or not parsed['scenes']:
-            self.send_error(400, 'Not a tour config: no "scenes" array')
+        problem = describe_bad_tour(parsed)
+        if problem:
+            self._refuse(400, 'Not a tour config: %s' % problem)
             return
 
         try:
             self._write_config(body)
         except OSError as err:
-            self.send_error(500, 'Could not write config/tour.json: %s' % err)
+            self._refuse(500, 'Could not write config/tour.json: %s' % err)
             return
 
         print('  saved config/tour.json  (%d scenes)' % len(parsed['scenes']))
         sys.stdout.flush()
-        payload = json.dumps({'ok': True, 'scenes': len(parsed['scenes'])}).encode('utf-8')
+        self._send_json({'ok': True, 'scenes': len(parsed['scenes'])})
+
+    def _send_json(self, value):
+        payload = json.dumps(value).encode('utf-8')
         self.send_response(200)
         self.send_header('Content-Type', 'application/json')
         self.send_header('Content-Length', str(len(payload)))
         self.end_headers()
         self.wfile.write(payload)
+
+    def _refuse(self, code, message):
+        """Like send_error, but plain text.
+
+        send_error wraps the reason in an HTML error page, and the editor shows
+        the response body to the user — a page of markup where a sentence was
+        meant to be. Node's server answers in plain text; match it.
+        """
+        payload = message.encode('utf-8')
+        self.send_response(code, message.split('.')[0])
+        self.send_header('Content-Type', 'text/plain; charset=utf-8')
+        self.send_header('Content-Length', str(len(payload)))
+        self.end_headers()
+        self.wfile.write(payload)
+        sys.stderr.write('  %d %s: %s\n' % (code, self.path, message))
 
     @staticmethod
     def _write_config(body):

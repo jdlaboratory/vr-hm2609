@@ -31,13 +31,20 @@ JavaScript — and the built-in editor writes that file for you.
 
 ### Just double-click
 
-| Your computer | Double-click this |
-| --- | --- |
-| **Windows** | **`start-windows.bat`** |
-| **macOS / Linux** | **`start-macos.command`** |
+| What you want | Windows | macOS / Linux |
+| --- | --- | --- |
+| **Show the tour** | **`start-windows.bat`** | **`start-macos.command`** |
+| **Edit it** (saving on) | **`start-editor-windows.bat`** | `./start-macos.command --edit` |
 
 A small window opens, the tour launches in your browser, and that is it. Close the window
 (or press `Ctrl+C` in it) to stop.
+
+The two Windows files differ only in one flag. `start-windows.bat` serves the site
+**read-only** — nothing reached through it can overwrite the tour, which is what you want
+when someone else is looking at it. `start-editor-windows.bat` is the same launcher with
+`--edit`: it opens straight into the editor and lets its 저장 button write
+`config/tour.json` (keeping the version it replaces as `config/tour.json.bak`). There is no
+separate macOS file; pass `--edit` to the one launcher instead.
 
 > **macOS, first time only.** macOS will not run a file it does not consider executable.
 > Open Terminal in this folder once and run `chmod +x start-macos.command`. After that,
@@ -56,20 +63,23 @@ dependencies.
 
 ### Options
 
-Both launchers pass their arguments straight through:
+All three launchers pass their arguments straight through:
 
 ```bash
-start-windows.bat --edit          # open directly into the editor, and let it save
+start-windows.bat --edit          # what start-editor-windows.bat does for you
 start-windows.bat --lan           # also reachable from a phone on the same Wi-Fi
 start-windows.bat --port 9000     # choose the port
 start-windows.bat --no-browser    # do not open a browser
 
+start-editor-windows.bat --lan    # editor, and reachable from a phone too
 ./start-macos.command --edit      # same flags on macOS
 ```
 
 `--edit` does two things: it opens the browser at `?edit=1`, and it lets the local server
 accept `PUT /api/tour-config`, which is how the editor's **저장 (Save)** button writes
-`config/tour.json`. Without `--edit` the server is strictly read-only, so nothing can
+`config/tour.json`. (Two read-only companions, `GET /api/tour-config` and
+`GET /api/panoramas`, answer on any local server: the editor uses them to tell you up front
+whether saving will work, and which panoramas a new viewpoint could use.) Without `--edit` the server is strictly read-only, so nothing can
 overwrite the tour by accident. Combining `--edit` with `--lan` exposes that write endpoint
 to everyone on the network — fine at a desk, not on a café Wi-Fi.
 
@@ -108,7 +118,8 @@ the page.
 
 ```
 /
-├── start-windows.bat           ← double-click on Windows
+├── start-windows.bat           ← double-click on Windows (read-only)
+├── start-editor-windows.bat    ← double-click on Windows to edit (saving on)
 ├── start-macos.command         ← double-click on macOS / Linux
 ├── index.html                  page shell + UI markup
 ├── css/style.css               all styling
@@ -118,7 +129,7 @@ the page.
 │   ├── tour.js                 THE ONLY FILE THAT CALLS MARZIPANO
 │   ├── hotspots.js             builds the DOM element for each hotspot type
 │   ├── minimap.js              floor plan + pins, bottom right
-│   ├── modal.js                accessible dialog + YouTube embed + info content
+│   ├── modal.js                accessible dialog + Vimeo embed + info content
 │   ├── ui.js                   scene title, scene menu, fullscreen, loader, errors
 │   └── editor.js               ?edit=1 developer tool
 ├── config/
@@ -152,9 +163,14 @@ to `tour.js` through a handful of methods.
 ## 3. The panoramas in this project
 
 `assets/source-panoramas/` holds **26** original photos: `001.jpg`–`024.jpg`, plus `009a.jpg`
-and `011b.jpg` for second viewpoints inside rooms that needed two. Scene ids mirror the file
-names, letter suffixes included, so the mapping stays obvious: `006.jpg` → `scene06`,
-`011b.jpg` → `scene11b`.
+and `011b.jpg`. Scene ids mirror the file names, letter suffixes included, so the mapping
+stays obvious: `006.jpg` → `scene06`, `011b.jpg` → `scene11b`.
+
+**The tour uses 24 of them.** `009a.jpg` and `011b.jpg` were second viewpoints inside rooms
+that already had one, and were dropped; the originals are kept in case they are wanted back.
+Re-running `tools/make-web-equirect.ps1` will regenerate web copies for them, which nothing
+references — delete the two originals if you want the script's output to match the tour
+exactly.
 
 All originals are 8192 × 4096 equirectangular JPEGs. **They are never read by the website
 and are never modified** — they are the master copies that the two scripts in `tools/`
@@ -177,11 +193,9 @@ and come out at the lifts.
 | `scene08` | 멀티홀 인트로 | `008.jpg` | 0.46, 0.55 |
 | `scene23` | 멀티홀 중앙 | `023.jpg` | 0.41, 0.46 |
 | `scene09` | 영상 코너 | `009.jpg` | 0.34, 0.51 |
-| `scene09a` | 영상 코너 안쪽 | `009a.jpg` | 0.29, 0.46 |
 | `scene24` | 멀티홀 서편 | `024.jpg` | 0.33, 0.37 |
 | `scene10` | 멀티홀 북편 | `010.jpg` | 0.25, 0.33 |
 | `scene11` | 미디어 아카이브 | `011.jpg` | 0.19, 0.41 |
-| `scene11b` | 아카이브 안쪽 | `011b.jpg` | 0.175, 0.31 |
 | `scene13` | 암막 영상실 | `013.jpg` | 0.095, 0.55 |
 | `scene14` | 영상 복도 | `014.jpg` | 0.095, 0.42 |
 | `scene15` | 연결 복도 | `015.jpg` | 0.095, 0.28 |
@@ -295,13 +309,13 @@ control which way the visitor is facing when they arrive.
 If `target` names a scene that does not exist, the hotspot is removed at load time and a
 console warning tells you which one — the tour still works.
 
-### 4.4 Adding a YouTube hotspot
+### 4.4 Adding a Vimeo hotspot
 
 ```json
 {
   "id": "scene08-video",
-  "type": "youtube",
-  "videoId": "aqz-KE-bpKQ",
+  "type": "vimeo",
+  "videoId": "https://vimeo.com/76979871/abc123def4",
   "title": "Introduction film",
   "yaw": 0,
   "pitch": -0.05,
@@ -309,14 +323,19 @@ console warning tells you which one — the tour still works.
 }
 ```
 
-- `videoId` accepts either the bare 11-character id **or** a full YouTube URL
-  (`https://youtu.be/…`, `…/watch?v=…`, `…/embed/…`, `…/shorts/…`). Anything else is
-  rejected with a console warning rather than being pushed into an iframe.
+- `videoId` accepts the bare numeric id (`76979871`), `id/hash`, or a full Vimeo address —
+  `https://vimeo.com/…`, `…/channels/name/…`, `…/groups/name/videos/…`,
+  `https://player.vimeo.com/video/…?h=…`. Anything else is rejected with a console warning
+  rather than being pushed into an iframe.
+- **Unlisted videos need their privacy hash.** It is the second part of the share link
+  (`vimeo.com/76979871/abc123def4`) or the `?h=` parameter. Paste the whole address and the
+  hash is kept for you; paste only the id and an unlisted video will refuse to play.
 - Add `"start": 30` to begin 30 seconds in.
 - The iframe is created only when the hotspot is clicked and **destroyed when the modal
   closes**, so no video keeps playing in the background and the page never loads ten
   players at once.
-- Embeds use `youtube-nocookie.com`.
+- The player is asked not to track the visitor (`dnt=1`), and the byline, portrait and
+  title overlays are turned off.
 
 ### 4.5 Adding an info hotspot
 
@@ -343,18 +362,19 @@ view looks right and press **시작 화면으로 지정 (Use current view)**.
 
 ### 4.7 The minimap
 
-The floor plan in the bottom-right corner is driven by `settings.minimap` plus one `map`
-block per scene. Every scene with a `map` gets a pin; the scene you are standing in swaps to
-the highlight pin and clicking any pin jumps to that scene.
+The floor plan is driven by `settings.minimap` plus one `map` block per scene. Every scene
+with a `map` gets a pin; the scene you are standing in swaps to the highlight pin and
+clicking any pin jumps to that scene.
 
 ```json
 "minimap": {
   "enabled": true,
   "image": "assets/source-map/hm_map.png",
-  "title": "B1 안내도",
+  "title": "",
   "pin": "assets/icons/pin.svg",
   "pinActive": "assets/icons/pin-active.svg",
-  "width": 300,
+  "width": 432,
+  "position": { "corner": "bottom-right", "x": 16, "y": 16 },
   "startCollapsed": false
 }
 ```
@@ -362,12 +382,37 @@ the highlight pin and clicking any pin jumps to that scene.
 | Key | Default | Meaning |
 | --- | --- | --- |
 | `enabled` | `true` | `false` hides the minimap without deleting the coordinates. |
-| `image` | — | **Required.** Floor plan, any web image format. Without it the minimap turns itself off with a console warning. |
-| `title` | `""` | Caption on the panel header. An empty string leaves just the collapse chevron. |
+| `image` | — | **Required.** Floor plan, any web image format. It supplies its own background — see below. Without it the minimap turns itself off with a console warning. |
+| `title` | `""` | Caption above the plan. Empty (as shipped) leaves only the collapse chevron, tucked into the corner — the header strip shrinks with it rather than pushing the plan down. |
 | `pin` | `assets/icons/pin.svg` | Pin for every scene. |
 | `pinActive` | `assets/icons/pin-active.svg` | Pin for the scene currently on screen. |
-| `width` | `260` | Panel width in px, clamped to 140–520. Narrow screens cap it further. |
+| `width` | `260` | Panel width in px, clamped to 140–560. Narrow screens cap it further. |
+| `position` | bottom-right, 16/16 | Where the panel sits — see below. |
 | `startCollapsed` | `false` | Open the tour with the plan folded away. |
+
+**Size and placement.** `width` is the panel's width in px; the plan scales to fit it and the
+pins scale with it, so a 24-pin plan stays readable at every size. `position` anchors the
+panel to one corner rather than to absolute coordinates, so it keeps its margin when the
+window is resized:
+
+```json
+"position": { "corner": "bottom-right", "x": 16, "y": 16 }
+```
+
+`corner` is one of `bottom-right`, `bottom-left`, `top-right`, `top-left`; `x` and `y` are
+the gaps in px from that corner's edges. On a phone the offsets are widened automatically
+where the screen has a notch, so a corner panel never lands under one. The top corners are
+allowed but already hold the scene title and the menu buttons — check the overlap before
+choosing one. Both values are editable by hand or, more easily, by dragging the panel in
+`?edit=1`.
+
+**The panel behind the plan is fully transparent** — no scrim, no frame, no shadow. The
+floor plan image is what the visitor sees, so it has to carry its own background:
+`hm_map.png` is a line drawing on a 60% white ground, which reads over both a sunlit lobby
+and a blacked-out gallery while still letting the panorama through. Swap in an image with no
+ground at all and the lines will float unreadably over bright walls; swap in a fully opaque
+one and you get a hard rectangle. The chevron, and a title if you set one, keep a text shadow —
+they have nothing behind them either.
 
 The two pins are separate SVG files rather than one file recoloured in CSS, so the highlight
 colour is a decision you make in `assets/icons/` — swap in your own artwork and nothing in
@@ -405,7 +450,13 @@ and the floor plan updates. Nothing is written to disk until you press **저장 
   FOV    1.28  (73.4°)
   [시작 화면으로 지정]  [되돌리기]
 
-이동 포인트                 3
+포인트                      24        ← the viewpoint you are standing in
+  이름  [중앙 로비            ]
+  006.jpg                            ← which photo this is
+  추가할 파노라마 [scene09a ▾] [추가]
+  [이 포인트 삭제]
+
+이동 포인트                 3         ← the arrows leading out of it
   카페                     카페        ← click to select; hover to find it on screen
   계단 위 라운지            계단 상부 라운지
   전시 입구                 전시 입구
@@ -414,12 +465,62 @@ and the floor plan updates. Nothing is written to disk until you press **저장 
   yaw -1.4 · pitch 0.26  (-80.2° / 14.9°)
   [화면에서 위치 지정]  [삭제]
 
-미니맵 위치
+미니맵 핀 위치                ← this scene's pin
   x 0.46 · y 0.72
   [핀 없애기]
 
+미니맵 패널                360px  ← the panel itself
+  크기   [======|=======]
+  기준 모서리  [우측 하단 ▾]
+  우측 하단 · 가로 16px · 세로 16px
+  [처음 상태로]
+
 [저장]  [JSON 복사]  [내려받기]
 ```
+
+### Renaming, adding and deleting a viewpoint
+
+Under **포인트**:
+
+| Control | What it does |
+| --- | --- |
+| **이름** | Renames the scene as you type. The title bar, the scene menu, the browser tab and the pin's screen-reader name all follow in one go — and so do the arrow captions, see below |
+| The file name under it | The original photo this viewpoint was built from, taken from the scene's `_source` note — the one thing the name cannot tell you when matching the tour against a folder of originals. Hover it for the full paths, source and web copy both |
+| **추가할 파노라마** + **추가** | Creates a new viewpoint from a panorama that is on disk but not in the tour yet |
+| **이 포인트 삭제** | Removes this viewpoint, after a confirmation that says how many arrows point at it |
+
+A viewpoint cannot be invented — it needs a picture behind it. So the dropdown lists what is
+actually in `assets/panoramas/equirect/`, minus whatever the tour already uses. Drop a new
+photo into `assets/source-panoramas/`, run `tools/make-web-equirect.ps1`, reload the editor,
+and it appears in the list. When the list is empty, every panorama you have is already in the
+tour. (The list comes from the local server, so on a static host the control is disabled.)
+
+**A rename follows the name everywhere it is shown**: the title over the panorama, the ☰
+scene list, the browser tab, the minimap pin's screen-reader name, the 이동 포인트 list, the
+대상 장면 dropdown — and the captions of the arrows that lead here.
+
+An arrow's caption is its own string, not a view of its target's name: `"로비로 나가기"` is
+deliberately not what the lobby is called. So a rename rewrites only the captions that were
+*showing* the old name, exactly; anything phrased differently is left as it was written, and
+the editor says how many captions moved with the name. Arrows in scenes you have not opened
+yet are updated in the file just the same — they are simply built with the new caption when
+you get there.
+
+The same rule runs the other way. A new arrow starts out captioned with where it goes, and
+changing its **대상 장면** re-captions it — unless you have written a caption of your own, in
+which case it stays untouched.
+
+A new viewpoint arrives named after its id, aimed straight ahead, with its pin in the middle
+of the floor plan and no arrows — the editor jumps to it and puts the caret in **이름** so
+you can name it first. Then drag its pin where it belongs and add arrows as usual. It is
+written to the file in the same shape as every hand-written scene, including the `_source`
+note, so a saved file does not betray which scenes the editor made.
+
+**Deleting takes the arrows with it.** Any arrow in any other scene that pointed at the
+deleted viewpoint is removed too — otherwise the next reload would drop them anyway, with a
+console warning. The confirmation says how many. If you delete the scene named in
+`settings.defaultScene`, the default moves to the scene you land on. The last remaining
+scene cannot be deleted; a tour with no scenes does not load.
 
 ### Moving a navigation point
 
@@ -440,13 +541,26 @@ Three other ways, for when dragging is awkward:
 **+ 이동 포인트 추가** drops a new point in the middle of the current view, aimed at a scene
 this one does not link to yet, and selects it. Set **대상 장면** (which scene it leads to)
 and **라벨** (the caption on hover); both take effect immediately. **종류** switches a point
-between a scene jump, a YouTube modal and an info panel. **삭제** removes the selected point.
+between a scene jump, a Vimeo modal and an info panel. **삭제** removes the selected point.
 
 ### Moving a minimap pin
 
 Drag the pin on the floor plan, or click any empty part of the plan to move the **current**
 scene's pin there. `핀 없애기` removes the pin, leaving the scene reachable only from the
 scene menu and its arrows. The readout shows the stored fraction, e.g. `x 0.46 · y 0.72`.
+
+### Resizing and moving the minimap itself
+
+Under **미니맵 패널**:
+
+| Control | What it does |
+| --- | --- |
+| **크기** slider | 140–560 px, applied as you drag it. The pins scale with the panel. |
+| **기준 모서리** | Jumps the panel to one of the four corners, keeping the current margins |
+| **Drag the plan's title bar** | Moves the whole panel. It anchors to whichever corner it is closest to when you let go, and the margins from that corner are what gets saved |
+| **처음 상태로** | Back to the size and place it had when you opened the editor |
+
+Dragging the title bar never folds the panel away, and a plain click on it still does.
 
 ### Saving
 
@@ -456,11 +570,23 @@ scene menu and its arrows. The readout shows the stored fraction, e.g. `x 0.46 �
 | **JSON 복사** | Copies the file to the clipboard |
 | **내려받기** | Downloads `tour.json` for you to drop into `config/` yourself |
 
-**저장 only works on a server started with `--edit`** (`tools/serve.py --edit`, or
-`start-windows.bat --edit`). Any other server — including GitHub Pages — refuses the write,
-and the editor says so and points you at 내려받기. Before writing, it checks that no scene
-arrow points at a missing scene and no video hotspot is missing its id, because either would
-silently vanish on the next reload; if one does, it names the problem and saves nothing.
+**저장 only works on a server started with `--edit`.** On Windows, double-click
+**`start-editor-windows.bat`** — that is the whole point of that file. Elsewhere use
+`./start-macos.command --edit` or `tools/serve.py --edit`. Double-clicking the plain
+`start-windows.bat` and then typing `?edit=1` yourself gives you the editor but a read-only
+server, which is the usual reason saving fails.
+
+You do not have to discover that by losing work: the editor asks the server at startup
+whether it will accept a save, and puts a yellow warning under the buttons when it will not.
+Press 저장 anyway and the server's own answer appears — *"Saving is off. Restart the server
+with --edit"*. Any host without the endpoint at all, GitHub Pages included, says so too, and
+내려받기 keeps working everywhere.
+
+Before writing, the editor checks that no scene arrow points at a missing scene and no video
+hotspot is missing its id, because either would silently vanish on the next reload; if one
+does, it names the problem and saves nothing. The server checks the file it receives the
+same way — every scene needs an `id` and a `panorama` block — so a misdirected request
+cannot replace the tour with something that does not load.
 
 The saved file is the file you had, with your edits in it: key order, `_source` notes,
 comments in `_README` and the hand-tuned formatting all survive. A save that changes one
@@ -497,8 +623,8 @@ Two things in this repository still want a human eye:
 | Estimated arrow positions | every `yaw`/`pitch` in `tour.json` | positions dragged in `?edit=1` |
 | Estimated minimap positions | every `map` block | pins dragged onto the floor plan |
 
-There is no placeholder video or info text left in `tour.json` — the tour is 26 scene-to-scene
-links and nothing else. Add videos and info panels as you need them ([4.4](#44-adding-a-youtube-hotspot),
+There is no placeholder video or info text left in `tour.json` — the tour is 24 scenes of
+scene-to-scene links and nothing else. Add videos and info panels as you need them ([4.4](#44-adding-a-vimeo-hotspot),
 [4.5](#45-adding-an-info-hotspot)).
 
 The **hotspot** icons in `assets/icons/` (`arrow.svg`, `video.svg`, `info.svg`) are **not**
@@ -508,8 +634,9 @@ no extra request. To use a custom image for one hotspot, add
 and `pin-active.svg` are real files, loaded as images, precisely so you can restyle them
 without touching code.
 
-The floor plan is used exactly as it sits in `assets/source-map/` — it is already web-sized,
-so unlike the panoramas it needs no derived copy. Swapping in a different plan means dropping
+The floor plan is used exactly as it sits in `assets/source-map/`: it is already web-sized,
+and it already carries the translucent ground the panel relies on, so unlike the panoramas it
+needs no derived copy. Swapping in a different plan means dropping
 the file in, pointing `settings.minimap.image` at it, and re-placing the pins in `?edit=1`
 (the stored fractions only stay right if the new plan frames the building the same way).
 
@@ -558,8 +685,8 @@ A 2:1 aspect ratio is required. Anything else will look stretched.
 ```bash
 pip install pillow numpy
 
-python tools/make-multires.py              # all 26 panoramas
-python tools/make-multires.py 006 011b     # just these two
+python tools/make-multires.py              # every source photo
+python tools/make-multires.py 006 013      # just these two
 python tools/make-multires.py --face-size 1024   # smaller/faster
 ```
 
@@ -699,10 +826,17 @@ headless Chrome against this build and passed. To re-check by hand after your ed
 | K | Click another pin | that scene loads and its pin becomes the highlighted one |
 | L | Collapse the minimap | plan folds away, chevron rotates, tour unaffected |
 | M | Add `?edit=1` | editor panel appears (and never appears without it) |
-| N | Drag an arrow | it follows the pointer, yaw/pitch updates, and it does **not** navigate |
-| O | Drag a minimap pin | pin moves, `미니맵 위치` readout updates |
+| N | Rename in 이름 | title bar, scene menu, tab title and pin name all change |
+| N2 | 추가 a viewpoint | new scene appears in menu and on the plan, editor jumps to it |
+| N3 | 이 포인트 삭제 | scene and every arrow pointing at it are gone, you land on a neighbour |
+| N4 | Drag an arrow | it follows the pointer, yaw/pitch updates, and it does **not** navigate |
+| O | Drag a minimap pin | pin moves, `미니맵 핀 위치` readout updates |
+| O2 | Drag the minimap title bar | panel moves, snaps to the nearest corner, does not collapse |
+| O3 | Move the 크기 slider | panel and pins resize live, readout follows |
 | P | 저장 on a `--edit` server | `config/tour.json` rewritten, `.bak` kept, diff limited to what you changed |
-| Q | 저장 on any other server | refused with a message, nothing lost — 내려받기 still works |
+| Q | Double-click `start-editor-windows.bat` | browser opens at `?edit=1`, 저장 writes the file |
+| Q2 | Open the editor on a server without `--edit` | yellow warning under the save buttons, before anything is edited |
+| Q3 | 저장 on any other server | refused with the reason, nothing lost — 내려받기 still works |
 | R | `?scene=nonsense` | default scene loads, warning in console, no crash |
 | S | Break a `videoId` in `tour.json` | that hotspot disappears with a warning; tour still works |
 | T | Browser without fullscreen | button is hidden, not broken |
@@ -724,7 +858,7 @@ hotspot pulse and all transitions are disabled under `prefers-reduced-motion`.
 - **The floor plan covers B1 only.** `scene01` and `scene07` are around the stairs at the
   level above, and sit on the stair block of the plan for want of anywhere better. A second
   plan per floor would be the honest fix; `settings.minimap` currently takes one image.
-- **26 pins on one small plan is dense.** In the multi hall the pins nearly touch. Fine to
+- **24 pins on one small plan is dense.** In the multi hall the pins nearly touch. Fine to
   read, but if the tour grows, consider a larger `width` or grouping viewpoints.
 - **Still on equirectangular.** Working and fast, but capped at 4096 px. Run
   `tools/make-multires.py` before launch to use the full 8192 px source detail — see

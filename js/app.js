@@ -9,7 +9,7 @@
 import { loadTourConfig } from './config.js';
 import { Tour } from './tour.js';
 import { installHotspots } from './hotspots.js';
-import { Modal, buildYouTubeEmbed, buildInfoContent } from './modal.js';
+import { Modal, buildVimeoEmbed, buildInfoContent } from './modal.js';
 import { UI } from './ui.js';
 import { Minimap } from './minimap.js';
 import { Editor, isEditorRequested } from './editor.js';
@@ -136,7 +136,7 @@ async function start() {
     onNavigate: (targetId, targetView) => goToScene(targetId, targetView),
 
     onOpenVideo: (hotspot, opener) => {
-      // config.js already guaranteed a valid 11-character id; this is a
+      // config.js already guaranteed a valid numeric video id; this is a
       // second line of defence so a bad edit cannot blank the tour.
       if (!hotspot.videoId) {
         console.warn(`[tour] Hotspot "${hotspot.id}" has no video id — ignoring click.`);
@@ -144,7 +144,7 @@ async function start() {
       }
       modal.open({
         title: hotspot.title || 'Video',
-        content: buildYouTubeEmbed(hotspot),
+        content: buildVimeoEmbed(hotspot),
         openerElement: opener
       });
       elements.modal.dialog.classList.add('is-video');
@@ -194,6 +194,7 @@ async function start() {
       new Editor(tour, config, elements.pano, {
         hotspots,
         minimap,
+        ui,
         onNavigate: (id) => goToScene(id)
       });
     } catch (err) {
