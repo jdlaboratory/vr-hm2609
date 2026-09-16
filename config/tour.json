@@ -223,6 +223,16 @@
           "label": "Theatre of Apparitions",
           "videoId": "1223679817",
           "title": "Theatre of Apparitions"
+        },
+        {
+          "id": "scene08-hs5",
+          "type": "vimeo",
+          "target": "scene01",
+          "yaw": -3.131,
+          "pitch": 0.145,
+          "label": "Spirits and Spaces",
+          "videoId": "1223678702",
+          "title": "Spirits and Spaces"
         }
       ]
     },
@@ -337,8 +347,8 @@
           "id": "scene23-hs3",
           "type": "vimeo",
           "target": "scene01",
-          "yaw": -0.02,
-          "pitch": 0.072,
+          "yaw": -0.022,
+          "pitch": 0.071,
           "label": "Roger the Rat",
           "videoId": "1223677194",
           "title": "Roger the Rat"
