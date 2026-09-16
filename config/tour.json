@@ -425,7 +425,7 @@
         "url": "assets/panoramas/equirect/scene14_{z}.jpg",
         "levels": [{ "width": 1024 }, { "width": 4096 }]
       },
-      "initialView": { "yaw": -0.456, "pitch": -0.048, "fov": 1.195 },
+      "initialView": { "yaw": -0.341, "pitch": 0.06, "fov": 1.158 },
       "map": { "x": 0.1042, "y": 0.3148 },
       "hotspots": [
         {
@@ -458,7 +458,7 @@
         "url": "assets/panoramas/equirect/scene15_{z}.jpg",
         "levels": [{ "width": 1024 }, { "width": 4096 }]
       },
-      "initialView": { "yaw": 0.04, "pitch": -0.026, "fov": 1.195 },
+      "initialView": { "yaw": -0.008, "pitch": 0.073, "fov": 1.158 },
       "map": { "x": 0.1042, "y": 0.139 },
       "hotspots": [
         {
@@ -613,7 +613,7 @@
         "url": "assets/panoramas/equirect/scene20_{z}.jpg",
         "levels": [{ "width": 1024 }, { "width": 4096 }]
       },
-      "initialView": { "yaw": 0.148, "pitch": 0.021, "fov": 1.195 },
+      "initialView": { "yaw": -0.005, "pitch": 0.043, "fov": 1.158 },
       "map": { "x": 0.8787, "y": 0.1772 },
       "hotspots": [
         {
@@ -654,7 +654,7 @@
         "url": "assets/panoramas/equirect/scene21_{z}.jpg",
         "levels": [{ "width": 1024 }, { "width": 4096 }]
       },
-      "initialView": { "yaw": 0.031, "pitch": 0.062, "fov": 1.195 },
+      "initialView": { "yaw": 0.009, "pitch": 0.06, "fov": 1.158 },
       "map": { "x": 0.8811, "y": 0.4312 },
       "hotspots": [
         {

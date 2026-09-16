@@ -1,0 +1,187 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>mobile layout audit</title>
+<style>body{margin:0;font:12px/1.5 monospace}iframe{border:0;display:block}</style>
+<div id="frames"></div>
+<pre id="out">running…</pre>
+<script>
+const log = [];
+const say = (t) => { log.push(t); document.getElementById('out').textContent = log.join('\n'); };
+const ok = (pass, label, detail) =>
+  say(`${pass ? 'ok  ' : 'FAIL'}  ${label}${detail ? '   ' + detail : ''}`);
+
+function waitFor(fn, what, ms = 20000) {
+  return new Promise((resolve, reject) => {
+    const t0 = Date.now();
+    (function tick() {
+      let v = null;
+      try { v = fn(); } catch (e) {}
+      if (v) return resolve(v);
+      if (Date.now() - t0 > ms) return reject(new Error('timeout: ' + what));
+      setTimeout(tick, 100);
+    })();
+  });
+}
+
+const q = new URLSearchParams(location.search);
+const W = parseInt(q.get('w') || '390', 10);
+const H = parseInt(q.get('h') || '844', 10);
+const URL_IN = q.get('u') || '/';
+
+(async () => {
+  const frame = document.createElement('iframe');
+  frame.style.width = W + 'px';
+  frame.style.height = H + 'px';
+  frame.src = URL_IN;
+  document.getElementById('frames').appendChild(frame);
+  await new Promise((r) => frame.addEventListener('load', r, { once: true }));
+
+  const d = frame.contentDocument;
+  const w = frame.contentWindow;
+  const box = (sel) => {
+    const el = typeof sel === 'string' ? d.querySelector(sel) : sel;
+    return el && !el.hidden ? el.getBoundingClientRect() : null;
+  };
+  const round = (b) => b ? `${Math.round(b.x)},${Math.round(b.y)} ${Math.round(b.width)}x${Math.round(b.height)}` : 'hidden';
+
+  try {
+    await waitFor(() => d.querySelector('#pano canvas'), 'the panorama');
+    await waitFor(() => d.getElementById('sceneTitle').textContent, 'a scene');
+
+    say(`=== ${W}x${H}   ${URL_IN}   (CSS viewport ${w.innerWidth}x${w.innerHeight})`);
+
+    // 1. nothing scrolls sideways
+    const de = d.documentElement;
+    ok(de.scrollWidth <= de.clientWidth + 1, 'no horizontal page scroll',
+       `scrollWidth ${de.scrollWidth} vs ${de.clientWidth}`);
+    ok(d.body.scrollHeight <= w.innerHeight + 1, 'no vertical page scroll',
+       `${d.body.scrollHeight} vs ${w.innerHeight}`);
+
+    // 2. title bar
+    const bar = box('.titlebar');
+    const title = d.querySelector('.titlebar-title');
+    const ts = w.getComputedStyle(title);
+    ok(Math.round(bar.width) === w.innerWidth, 'title bar spans the width', round(bar));
+    ok(title.scrollWidth <= title.clientWidth + 1, 'title not clipped',
+       `text ${title.scrollWidth}px in ${title.clientWidth}px, font ${ts.fontSize}`);
+
+    // 3. the panorama starts under it, and fills the rest
+    const pano = box('#pano');
+    ok(Math.round(pano.y) === Math.round(bar.height), 'panorama starts below the bar', round(pano));
+    ok(Math.round(pano.width) === w.innerWidth &&
+       Math.round(pano.y + pano.height) === w.innerHeight, 'panorama fills the rest', round(pano));
+
+    // 4. chrome inside the viewport, clear of the bar
+    for (const [sel, name] of [['#sceneTitle', 'scene title'], ['#menuBtn', 'menu button'],
+                               ['#fullscreenBtn', 'fullscreen button'], ['#hint', 'hint']]) {
+      const b = box(sel);
+      if (!b) { say(`   -   ${name}: hidden`); continue; }
+      ok(b.x >= 0 && b.right <= w.innerWidth + 1 && b.y >= bar.height - 1 &&
+         b.bottom <= w.innerHeight + 1, name, round(b));
+    }
+
+    // 5. scene title and the buttons must not sit on top of each other
+    const st = box('#sceneTitle'), mb = box('#menuBtn');
+    if (st && mb) {
+      ok(st.right <= mb.left + 1, 'scene title clear of the buttons',
+         `title ends ${Math.round(st.right)}, buttons start ${Math.round(mb.left)}`);
+    }
+
+    // 6. minimap
+    const map = box('#minimap');
+    if (map) {
+      ok(map.x >= 0 && map.right <= w.innerWidth + 1 &&
+         map.y >= bar.height - 1 && map.bottom <= w.innerHeight + 1,
+         'minimap inside the viewport', round(map));
+      ok(map.width <= w.innerWidth * 0.8, 'minimap leaves room for the panorama',
+         `${Math.round(map.width)}px = ${Math.round(map.width / w.innerWidth * 100)}% of the width`);
+      const hint = box('#hint');
+      if (hint) {
+        ok(hint.right <= map.left + 1 || hint.bottom <= map.top + 1,
+           'hint does not run under the plan',
+           `hint ends ${Math.round(hint.right)}, plan starts ${Math.round(map.left)}`);
+      }
+      const pin = d.querySelector('.minimap-pin');
+      if (pin) {
+        const pb = pin.getBoundingClientRect();
+        say(`   ·   minimap pin ${Math.round(pb.width)}x${Math.round(pb.height)}px`);
+      }
+    }
+
+    // 7. hotspot touch targets
+    // Marzipano parks the hotspots that are behind the camera at zero size;
+    // only the ones actually on screen are worth measuring.
+    const spots = [...d.querySelectorAll('#pano .hotspot')]
+      .filter((el) => el.getBoundingClientRect().width > 0);
+    if (spots.length) {
+      const small = spots.filter((el) => {
+        const b = el.getBoundingClientRect();
+        return b.width < 44 || b.height < 44;
+      });
+      const sb = spots[0].getBoundingClientRect();
+      ok(!small.length, `hotspots are 44px touch targets (${spots.length} on screen)`,
+         `${Math.round(sb.width)}x${Math.round(sb.height)}`);
+      ok(spots.every((el) => el.getAttribute('aria-label')),
+         'every hotspot has an accessible name',
+         'labels are hover-only and hidden on touch');
+    } else {
+      say('   -   no hotspot facing the camera in this view');
+    }
+
+    // 8. the scene drawer
+    d.getElementById('menuBtn').click();
+    await waitFor(() => !d.getElementById('sceneMenu').hidden, 'the drawer');
+    const menu = box('#sceneMenu');
+    ok(menu.x >= 0 && menu.right <= w.innerWidth + 1, 'drawer fits across', round(menu));
+    ok(menu.bottom <= w.innerHeight + 1, 'drawer fits down the screen', round(menu));
+    const list = d.getElementById('sceneMenuList');
+    ok(list.scrollWidth <= list.clientWidth + 1, 'drawer does not scroll sideways',
+       `${list.scrollWidth} vs ${list.clientWidth}`);
+    const item = d.querySelector('.scene-menu-item').getBoundingClientRect();
+    ok(item.height >= 44, 'menu row is a 44px touch target', `${Math.round(item.height)}px`);
+    const grip = d.querySelector('.scene-menu-grip');
+    if (grip) {
+      const gb = grip.getBoundingClientRect();
+      say(`   ·   reorder grip ${Math.round(gb.width)}x${Math.round(gb.height)}px`);
+    }
+    d.getElementById('menuBtn').click();
+
+    // 9. the video modal
+    const video = d.querySelector('#pano .hotspot-video');
+    if (video) {
+      video.click();
+      await waitFor(() => d.querySelector('#modalBody iframe'), 'the modal');
+      const dialog = box('#modalDialog');
+      const vf = box('.video-frame');
+      const close = box('#modalClose');
+      ok(dialog.x >= 0 && dialog.right <= w.innerWidth + 1 &&
+         dialog.y >= 0 && dialog.bottom <= w.innerHeight + 1, 'modal fits the screen', round(dialog));
+      ok(Math.abs(vf.width / vf.height - 16 / 9) < 0.02, 'player keeps 16:9',
+         `${Math.round(vf.width)}x${Math.round(vf.height)}`);
+      ok(close.width >= 40 && close.height >= 40 && close.right <= w.innerWidth + 1,
+         'close button is reachable', round(close));
+      d.getElementById('modalClose').click();
+    } else {
+      say('   -   no video hotspot in this scene');
+    }
+
+    // 10. the editor panel, when it is open
+    const panel = box('.editor');
+    if (panel) {
+      ok(panel.x >= 0 && panel.right <= w.innerWidth + 1, 'editor panel fits across', round(panel));
+      ok(panel.bottom <= w.innerHeight + 1, 'editor panel fits down', round(panel));
+      const body = d.querySelector('.editor-body');
+      ok(body.scrollWidth <= body.clientWidth + 1, 'editor panel does not scroll sideways',
+         `${body.scrollWidth} vs ${body.clientWidth}`);
+      const st2 = box('#sceneTitle');
+      if (st2) ok(st2.y >= panel.bottom - 1 || st2.right <= panel.left + 1 || st2.x >= panel.right - 1,
+                  'scene title clear of the editor', `${round(st2)} vs panel ${round(panel)}`);
+    }
+
+    say('DONE');
+  } catch (err) {
+    say('ERROR ' + err.message);
+    say('DONE');
+  }
+})();
+</script>
