@@ -451,7 +451,6 @@ export class Editor {
       this.ui.setActiveScene(this.scene.id);
     }
     if (this.minimap) this.minimap.rebuild();     // each pin's accessible name
-    document.title = `${this.scene.name} — Virtual Tour`;
     this._renderHotspotList();                    // arrows listed by target name
     this._refreshTargetOptions();                 // and chosen from those names
   }

@@ -137,6 +137,7 @@ the page.
 │   └── tour.json               ← the entire tour lives here
 ├── assets/
 │   ├── icons/                  pin.svg + pin-active.svg (minimap), optional hotspot icons
+│   ├── meta/                   metaimg.png — the social sharing card
 │   ├── source-map/             floor plan used by the minimap
 │   ├── source-panoramas/       ORIGINAL 8192×4096 photos — never modified
 │   └── panoramas/
@@ -460,6 +461,11 @@ hides part of the image, and a drag that starts at the top of the panorama is st
 Changing the height means changing `--titlebar-height` and nothing else.
 
 The title is the page's only `<h1>`; the scene name under it is an `<h2>`.
+
+**The bar and the browser tab are separate.** The tab reads `<title>` — currently
+*《미술관 B1: 다음 구역은 로저 발렌입니다》* — and stays put as you walk the tour; the scene
+name is already on screen, and a title that changes underfoot makes the tour hard to find
+again in a row of tabs. Change the two independently, or write the same words in both.
 
 The title is kept to one line — a wrapped title would change the bar's height, and every
 other element is measured from it. A title too long for a phone is truncated with an
@@ -881,6 +887,15 @@ directory listings are not required.
 - HTTPS matters for two features: the editor's **Copy** buttons use the Clipboard API
   (there is a select-the-text fallback), and the Fullscreen API is restricted on insecure
   origins. `localhost` counts as secure.
+- **The social card URLs in `index.html` are absolute** — `og:url`, `og:image` and
+  `twitter:image` all name `https://jdlaboratory.github.io/vr-hm2609/`. They have to be:
+  a crawler fetches them with no page to resolve a relative path against, so a relative one
+  yields no image at all. **Publishing to a different address means editing those three
+  lines**, or the card will keep pointing at this one. The card itself is
+  `assets/meta/metaimg.png` (1000×563); the tags declare those dimensions, so replacing the
+  file with a different size means updating `og:image:width` / `og:image:height` too.
+- Facebook and LinkedIn cache a card the first time they see it. After changing the image,
+  push through their debuggers rather than waiting for the cache to expire.
 
 ---
 
@@ -930,6 +945,8 @@ after your edits:
 | R | `?scene=nonsense` | default scene loads, warning in console, no crash |
 | S | Break a `videoId` in `tour.json` | that hotspot disappears with a warning; tour still works |
 | T | Browser without fullscreen | button is hidden, not broken |
+| U | Walk the tour, watch the tab | the title stays 《미술관 B1: …》, it does not follow the scene |
+| V | Paste the live URL into a chat | the card shows `metaimg.png`, the title and the description |
 
 Accessibility: hotspots are real `<button>`s with `aria-label`s and are keyboard reachable;
 the modal is a labelled `aria-modal` dialog with a focus trap and focus restoration; the

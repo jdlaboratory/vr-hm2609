@@ -179,7 +179,9 @@ async function start() {
     ui.setSceneName(scene.name);
     ui.setActiveScene(scene.id);
     if (minimap) minimap.setActiveScene(scene.id);
-    document.title = `${scene.name} — Virtual Tour`;
+    // The tab keeps the exhibition's title from index.html. The scene name is
+    // already on screen, and a title that changes underfoot makes the tour
+    // hard to find again among a row of tabs.
   });
 
   // Back/forward and manual hash edits.
