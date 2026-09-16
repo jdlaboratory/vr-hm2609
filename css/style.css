@@ -673,7 +673,12 @@ body.is-fullscreen .btn .icon-exit-fs { display: block; }
 
 /* Video dialogs are edge-to-edge dark so the player is the only thing seen. */
 .modal-dialog.is-video {
-  width: min(1100px, 100%);
+  /* The third term is what keeps a 16:9 player on screen in landscape: on a
+     short viewport the width is capped by the height that is left once the
+     modal's padding and the dialog's own title bar are taken out. Without it
+     the player is taller than the phone and its bottom is simply cut off. */
+  width: min(1100px, 100%,
+             calc((100dvh - var(--safe-top) - var(--safe-bottom) - 100px) * 16 / 9));
   padding: 0;
   background: #0d0d10;
   overflow: visible;
@@ -976,10 +981,14 @@ body.editor-active .hotspot.is-dragging { cursor: grabbing; }
   box-shadow: 0 0 0 3px rgba(70, 168, 116, 0.45), 0 1px 10px rgba(0, 0, 0, 0.35);
 }
 
-/* Keep the editor out of the way of the scene title on small screens. */
+/* On a narrow screen the editor is a sheet across the top, so the tour's own
+   controls move below it — otherwise the scene title, the ☰ button and the
+   fullscreen button all sit underneath the panel and cannot be reached. Both
+   rules read the same height so they cannot drift apart. */
 @media (max-width: 720px) {
-  .editor { width: calc(100vw - 24px); max-height: 52dvh; }
-  body.editor-active .ui-top { padding-top: 64px; }
+  :root { --editor-sheet-height: 52dvh; }
+  .editor { width: calc(100vw - 24px); max-height: var(--editor-sheet-height); }
+  body.editor-active .ui-top { padding-top: calc(var(--editor-sheet-height) + 24px); }
 }
 
 /* --------------------------------------------------------------- responsive */
@@ -990,9 +999,10 @@ body.editor-active .hotspot.is-dragging { cursor: grabbing; }
   .titlebar { padding-left: calc(14px + var(--safe-left)); padding-right: calc(14px + var(--safe-right)); }
   .titlebar-title { font-size: 17px; }
   .scene-title { font-size: 0.8125rem; padding: 8px 12px; }
-  /* The hint shares the bottom edge with the minimap: let it wrap rather than
-     run underneath. */
-  .hint { font-size: 0.75rem; max-width: 42vw; }
+  /* The hint shares the bottom edge with the minimap, which is capped at 52vw
+     just below. 42vw left the two touching at 360px, so this is the width that
+     actually fits beside it. */
+  .hint { font-size: 0.75rem; max-width: 34vw; }
   :root { --hotspot-size: 46px; }
   .modal-dialog { border-radius: var(--radius); }
   .minimap { --minimap-effective-width: min(var(--minimap-width), 52vw); }

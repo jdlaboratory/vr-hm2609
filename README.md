@@ -887,7 +887,10 @@ directory listings are not required.
 ## 11. Testing checklist
 
 The panorama rebuild, the minimap and every editing interaction below were driven through
-headless Chrome against this build and passed. To re-check by hand after your edits:
+headless Chrome against this build and passed. The layout was measured at **320, 360, 390,
+414, 768 and 1280 px wide, plus a landscape phone (844×390)**, with and without the editor:
+nothing scrolls sideways and nothing lands off screen at any of them. To re-check by hand
+after your edits:
 
 | | Check | Expected |
 | --- | --- | --- |
@@ -900,7 +903,9 @@ headless Chrome against this build and passed. To re-check by hand after your ed
 | F | Click the red play button in `scene01` | modal opens with the Vimeo player, 16:9 |
 | G | Close the modal | **audio stops immediately** (the iframe is removed) |
 | H | Press `Esc` | modal closes, focus returns to the hotspot |
-| I | Narrow the window to 390 px | no horizontal scrollbar, minimap shrinks, modal still fits |
+| I | Narrow the window to 390 px | no horizontal scrollbar; the plan caps at 52vw and the hint clears it |
+| I2 | Landscape phone, open a video | the 16:9 player is capped by the **height** and stays on screen |
+| I3 | `?edit=1` on a phone | the panel is a sheet across the top; scene title and ☰ sit below it, reachable |
 | J | Minimap | one pin per placed scene; the open scene's pin is the highlight colour |
 | K | Click another pin | that scene loads and its pin becomes the highlighted one |
 | L | Collapse the minimap | plan folds away, chevron rotates, tour unaffected |
@@ -947,6 +952,14 @@ hotspot pulse and all transitions are disabled under `prefers-reduced-motion`.
 - **22 pins on one small plan is dense.** In the multi hall the pins nearly touch. The
   panel has been widened to 560 px to compensate; if the tour grows again, consider
   grouping viewpoints rather than widening further.
+- **On a phone the pins are too small to aim at.** Capped at 52vw the plan is about 200 px
+  wide and each pin is 14×19 px — well under a 44 px touch target, and in the multi hall
+  they overlap. The ☰ list is the dependable way to move around on a phone; the plan is a
+  locator there, not a control. Giving the pins a bigger invisible hit area would help a
+  lone pin and make a cluster worse, so it is deliberately left alone.
+- **On a tablet the plan takes about 73% of the width** (560 px of 768). The 52vw cap only
+  applies below 560 px. Lower `settings.minimap.width`, or add a cap for tablet widths, if
+  that is too much.
 - **Still on equirectangular.** Working and fast, but capped at 4096 px. Run
   `tools/make-multires.py` before launch to use the full 8192 px source detail — see
   section 9.
