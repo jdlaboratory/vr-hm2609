@@ -9,6 +9,18 @@
 
 const HINT_DISMISSED_KEY = 'tour:hintDismissed';
 
+/** How far the pointer must travel before a press counts as a drag. */
+const DRAG_SLOP_PX = 4;
+/** How close to an edge of the open drawer a drag starts scrolling it. */
+const DRAG_EDGE_PX = 28;
+
+/** The six-dot grip, drawn inline so it inherits the row's colour. */
+const GRIP_ICON =
+  '<svg viewBox="0 0 16 16" aria-hidden="true" focusable="false">' +
+  '<circle cx="6" cy="4" r="1.15"/><circle cx="10" cy="4" r="1.15"/>' +
+  '<circle cx="6" cy="8" r="1.15"/><circle cx="10" cy="8" r="1.15"/>' +
+  '<circle cx="6" cy="12" r="1.15"/><circle cx="10" cy="12" r="1.15"/></svg>';
+
 export class UI {
   /**
    * @param {object} elements  DOM references, see app.js
@@ -48,6 +60,8 @@ export class UI {
    * so repeat calls cannot stack duplicate handlers.
    */
   buildSceneMenu(scenes) {
+    // Remembered so setSceneMenuEditable can rebuild without being handed them.
+    this._scenes = scenes;
     if (!this.settings.sceneMenu || scenes.length < 2) {
       this.el.menuBtn.hidden = true;
       return;
@@ -60,6 +74,7 @@ export class UI {
     this._menuItems = new Map();
     scenes.forEach((scene) => {
       const li = document.createElement('li');
+      li.className = 'scene-menu-row';
       const button = document.createElement('button');
       button.type = 'button';
       button.className = 'scene-menu-item';
@@ -70,6 +85,7 @@ export class UI {
         this.closeMenu();
       });
       li.appendChild(button);
+      if (this._menuEditable) li.appendChild(this._menuDragHandle(scene));
       list.appendChild(li);
       this._menuItems.set(scene.id, button);
     });
@@ -88,6 +104,125 @@ export class UI {
     document.addEventListener('keydown', (event) => {
       if (event.key === 'Escape' && this._menuOpen) this.closeMenu();
     });
+  }
+
+  /**
+   * Turns the scene list into a reorderable one. The editor calls this; the
+   * tour never does, so a visitor's menu has nothing in it but the scenes.
+   *
+   * @param {?{onMove: function(string, number): void,
+   *           onReorder: function(Array<string>): void}} handlers  null turns it off
+   */
+  setSceneMenuEditable(handlers) {
+    this._menuEditable = handlers || null;
+    if (this._scenes) this.buildSceneMenu(this._scenes);
+  }
+
+  /**
+   * The grip that reorders the list.
+   *
+   * It is a sibling of the row button rather than a child of it, so pressing
+   * it never walks into that scene. Dragging it moves the row; the arrow keys
+   * move it one place at a time, so the order is reachable without a mouse.
+   */
+  _menuDragHandle(scene) {
+    const handle = document.createElement('button');
+    handle.type = 'button';
+    handle.className = 'scene-menu-grip';
+    handle.dataset.sceneId = scene.id;
+    handle.title = '끌어서 순서 바꾸기';
+    handle.setAttribute('aria-label',
+      `"${scene.name}" 순서 바꾸기. 끌거나 위/아래 방향키를 누르세요.`);
+    // Trusted, developer-authored constant — safe to assign as HTML.
+    handle.innerHTML = GRIP_ICON;
+
+    handle.addEventListener('pointerdown', (event) => this._startMenuDrag(event, handle));
+    handle.addEventListener('keydown', (event) => {
+      const direction = event.key === 'ArrowUp' ? -1 : event.key === 'ArrowDown' ? 1 : 0;
+      if (!direction) return;
+      event.preventDefault();
+      this._menuEditable.onMove(scene.id, direction);
+    });
+    return handle;
+  }
+
+  /**
+   * Drags one row to a new place in the list.
+   *
+   * The row is moved in the DOM as the pointer passes each neighbour, so what
+   * you see during the drag is the order you will get. Only on release is the
+   * whole list handed to the editor, which is what writes it to the file.
+   */
+  _startMenuDrag(event, handle) {
+    if (!this._menuEditable) return;
+    if (event.button != null && event.button !== 0) return;
+    event.preventDefault();
+
+    const list = this.el.sceneMenuList;
+    const row = handle.parentElement;
+    const pointerId = event.pointerId;
+    const startY = event.clientY;
+    let moved = false;
+
+    // The rest of the drag is followed on `window`, NOT on the grip, and the
+    // grip deliberately does not capture the pointer. Moving the row is a
+    // remove-and-insert; that detaches the grip for an instant, which drops
+    // any pointer capture it holds. Listening on the grip would then hear one
+    // reorder and nothing after it — the row would move a single place per
+    // drag, however far you pulled it.
+    const onMove = (moveEvent) => {
+      if (moveEvent.pointerId !== pointerId) return;
+      if (!moved && Math.abs(moveEvent.clientY - startY) < DRAG_SLOP_PX) return;
+      if (!moved) {
+        moved = true;
+        row.classList.add('is-dragging');
+        list.classList.add('is-reordering');
+      }
+      // Nothing else should read this as a press on whatever is under it.
+      moveEvent.preventDefault();
+      this._placeDraggedRow(list, row, moveEvent.clientY);
+      this._scrollMenuEdge(moveEvent.clientY);
+    };
+
+    const onEnd = (endEvent) => {
+      if (endEvent.pointerId !== pointerId) return;
+      window.removeEventListener('pointermove', onMove, true);
+      window.removeEventListener('pointerup', onEnd, true);
+      window.removeEventListener('pointercancel', onEnd, true);
+      row.classList.remove('is-dragging');
+      list.classList.remove('is-reordering');
+      // A press that never became a drag leaves the list exactly as it was.
+      if (!moved) return;
+      this._menuEditable.onReorder([...list.children]
+        .map((item) => item.querySelector('.scene-menu-item').dataset.sceneId));
+    };
+
+    // Capture phase, so a drag that strays over the panorama is still ours.
+    window.addEventListener('pointermove', onMove, true);
+    window.addEventListener('pointerup', onEnd, true);
+    window.addEventListener('pointercancel', onEnd, true);
+  }
+
+  /** Puts the dragged row wherever the pointer currently is. */
+  _placeDraggedRow(list, row, y) {
+    const before = [...list.children].find((item) => {
+      if (item === row) return false;
+      const box = item.getBoundingClientRect();
+      return y < box.top + box.height / 2;
+    });
+    if (before) {
+      if (before.previousSibling !== row) list.insertBefore(row, before);
+    } else if (list.lastChild !== row) {
+      list.appendChild(row);
+    }
+  }
+
+  /** Scrolls the drawer when a drag reaches its top or bottom edge. */
+  _scrollMenuEdge(y) {
+    const menu = this.el.sceneMenu;
+    const box = menu.getBoundingClientRect();
+    if (y < box.top + DRAG_EDGE_PX) menu.scrollTop -= 12;
+    else if (y > box.bottom - DRAG_EDGE_PX) menu.scrollTop += 12;
   }
 
   toggleMenu() {

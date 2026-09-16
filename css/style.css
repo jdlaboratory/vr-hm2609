@@ -16,6 +16,12 @@
   --chrome-text-dim: rgba(255, 255, 255, 0.64);
 
   --hotspot-size: 48px;          /* >= 44px touch target */
+
+  /* Title bar. --chrome-top is where everything else begins: the panorama,
+     the UI layer, the scene menu, the editor and a top-corner minimap all
+     offset by it, so the bar sits above the tour instead of on top of it. */
+  --titlebar-bg: #2b2b30;
+  --titlebar-height: 52px;
   --radius: 4px;
   --radius-lg: 8px;
 
@@ -29,6 +35,8 @@
   --safe-right: env(safe-area-inset-right, 0px);
   --safe-bottom: env(safe-area-inset-bottom, 0px);
   --safe-left: env(safe-area-inset-left, 0px);
+
+  --chrome-top: calc(var(--titlebar-height) + var(--safe-top));
 }
 
 * { box-sizing: border-box; }
@@ -69,14 +77,45 @@ button { font: inherit; }
   border: 0;
 }
 
+/* -------------------------------------------------------------- title bar */
+
+.titlebar {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 28;                    /* over the minimap, under the scene menu */
+  height: var(--chrome-top);
+  display: flex;
+  align-items: center;
+  /* The notch inset is padding rather than height, so the text stays centred
+     in the visible strip on a phone. */
+  padding: var(--safe-top) calc(20px + var(--safe-right)) 0 calc(20px + var(--safe-left));
+  background: var(--titlebar-bg);
+  color: #fff;
+}
+
+.titlebar-title {
+  margin: 0;
+  font-size: 20px;
+  font-weight: 500;
+  line-height: 1.2;
+  letter-spacing: 0.01em;
+  /* One line always: a wrapped title would change the bar's height, and every
+     other element is positioned from it. */
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
 /* --------------------------------------------------------------- panorama */
 
 .pano {
   position: fixed;
-  inset: 0;
+  inset: var(--chrome-top) 0 0 0;
   /* 100dvh avoids the mobile Safari toolbar gap; the fixed inset above is the
      fallback for browsers without dvh. */
-  height: 100dvh;
+  height: calc(100dvh - var(--chrome-top));
   background: #0d0d10;
   cursor: grab;
 }
@@ -89,9 +128,13 @@ body.editor-picking .pano { cursor: crosshair; }
 
 .ui {
   position: fixed;
-  inset: 0;
+  inset: var(--chrome-top) 0 0 0;
   pointer-events: none;           /* only the controls themselves are clickable */
-  z-index: 20;
+  /* Above the minimap (25). The scene drawer is a child of this layer, so its
+     own z-index is scoped here — at 20 a long scene list opened underneath the
+     floor plan. Nothing is blocked by the change: this layer passes clicks
+     through except on the controls themselves. */
+  z-index: 26;
   display: flex;
   flex-direction: column;
   justify-content: space-between;
@@ -104,7 +147,7 @@ body.editor-picking .pano { cursor: crosshair; }
   display: flex;
   align-items: center;
   gap: 12px;
-  padding: calc(16px + var(--safe-top)) calc(16px + var(--safe-right))
+  padding: 16px calc(16px + var(--safe-right))
            16px calc(16px + var(--safe-left));
 }
 
@@ -191,7 +234,7 @@ body.is-fullscreen .btn .icon-exit-fs { display: block; }
 
 .scene-menu {
   position: fixed;
-  top: calc(70px + var(--safe-top));
+  top: calc(70px + var(--chrome-top));
   right: calc(16px + var(--safe-right));
   z-index: 30;
   width: min(260px, calc(100vw - 32px));
@@ -216,9 +259,13 @@ body.is-fullscreen .btn .icon-exit-fs { display: block; }
   padding: 6px;
 }
 
+/* One row: the scene, plus the editor's order buttons when it is open. */
+.scene-menu-row { display: flex; align-items: stretch; gap: 2px; }
+
 .scene-menu-item {
   display: block;
-  width: 100%;
+  flex: 1;
+  min-width: 0;
   min-height: 44px;
   padding: 11px 12px;
   text-align: left;
@@ -233,6 +280,37 @@ body.is-fullscreen .btn .icon-exit-fs { display: block; }
 .scene-menu-item:hover { background: rgba(255, 255, 255, 0.08); color: var(--chrome-text); }
 .scene-menu-item.is-active { color: var(--chrome-text); background: rgba(255, 255, 255, 0.12); }
 .scene-menu-item:focus-visible { outline: 2px solid #fff; outline-offset: -2px; }
+
+/* The reorder grip. Only ever present in ?edit=1 — see setSceneMenuEditable. */
+.scene-menu-grip {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  width: 30px;
+  padding: 0;
+  color: rgba(255, 255, 255, 0.35);
+  background: transparent;
+  border: 0;
+  border-radius: var(--radius);
+  cursor: grab;
+  /* The drag belongs to the grip; without this a touch drag scrolls the
+     drawer out from under the row instead of moving it. */
+  touch-action: none;
+  transition: background var(--speed) var(--ease), color var(--speed) var(--ease);
+}
+.scene-menu-grip svg { width: 16px; height: 16px; fill: currentColor; }
+.scene-menu-grip:hover { color: var(--chrome-text); background: rgba(255, 255, 255, 0.1); }
+.scene-menu-grip:focus-visible { outline: 2px solid #fff; outline-offset: -2px; }
+
+.scene-menu-row.is-dragging .scene-menu-item {
+  color: var(--chrome-text);
+  background: rgba(255, 255, 255, 0.2);
+}
+.scene-menu-row.is-dragging .scene-menu-grip { color: var(--chrome-text); cursor: grabbing; }
+/* Rows jump straight to their new place mid-drag; a colour fade on the way
+   would read as lag. */
+.scene-menu-list.is-reordering .scene-menu-item { transition: none; }
 
 /* ---------------------------------------------------------------- hotspots */
 
@@ -311,11 +389,23 @@ body.is-fullscreen .btn .icon-exit-fs { display: block; }
 /* Type accents: subtle, so hotspots read as one family. */
 .hotspot-scene .hotspot-icon svg { transform: translateY(-1px); }
 
+/* Video points wear the play-button red, so a film reads as a film at a glance
+   and never as one more way to walk. The hover rule has to repeat the colour:
+   the shared `.hotspot:hover .hotspot-icon` scrim outranks a plain type rule. */
 .hotspot-video .hotspot-icon {
-  background: rgba(18, 18, 22, 0.72);
+  background: #FF0033;
   border-color: #fff;
+  color: #fff;
 }
-.hotspot-video .hotspot-icon svg { transform: translateX(1px); }
+.hotspot-video:hover .hotspot-icon,
+.hotspot-video.is-hovered .hotspot-icon { background: #ff2149; }
+/* 30% larger than the 22px glyph the other types share, nudged right so the
+   triangle looks centred rather than measured. */
+.hotspot-video .hotspot-icon svg {
+  width: 29px;
+  height: 29px;
+  transform: translateX(1px);
+}
 
 .hotspot-info .hotspot-icon { border-style: solid; }
 
@@ -382,7 +472,7 @@ body.is-fullscreen .btn .icon-exit-fs { display: block; }
   right: auto;
 }
 .minimap[data-corner^="top"] {
-  top: max(var(--minimap-offset-y), var(--safe-top));
+  top: max(var(--minimap-offset-y), var(--chrome-top));
   bottom: auto;
 }
 
@@ -663,11 +753,11 @@ body.modal-open .ui { visibility: hidden; }
 
 .editor {
   position: fixed;
-  top: 12px;
+  top: calc(12px + var(--chrome-top));
   left: 12px;
   z-index: 70;
   width: 300px;
-  max-height: calc(100dvh - 24px);
+  max-height: calc(100dvh - var(--chrome-top) - 24px);
   display: flex;
   flex-direction: column;
   font-size: 12px;
@@ -810,12 +900,15 @@ body.modal-open .ui { visibility: hidden; }
   border: 1px solid rgba(255, 255, 255, 0.12);
   border-radius: var(--radius);
 }
+/* One row: the point itself, then the two buttons that move it. */
+.editor-list-row { display: flex; align-items: stretch; }
 .editor-list-item {
   display: flex;
   align-items: baseline;
   justify-content: space-between;
   gap: 8px;
-  width: 100%;
+  flex: 1;
+  min-width: 0;
   padding: 7px 9px;
   text-align: left;
   color: rgba(255, 255, 255, 0.78);
@@ -829,6 +922,25 @@ body.modal-open .ui { visibility: hidden; }
 .editor-list-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .editor-list-meta { flex: none; color: rgba(255, 255, 255, 0.4); }
 .editor-list-empty { padding: 8px 9px; color: rgba(255, 255, 255, 0.4); }
+
+.editor-list-order { display: flex; flex: none; }
+.editor-list-order button {
+  width: 20px;
+  padding: 0;
+  font-size: 9px;
+  line-height: 1;
+  color: rgba(255, 255, 255, 0.5);
+  background: transparent;
+  border: 0;
+  border-left: 1px solid rgba(255, 255, 255, 0.1);
+  cursor: pointer;
+}
+.editor-list-order button:hover:not(:disabled) {
+  color: #fff;
+  background: rgba(255, 255, 255, 0.12);
+}
+.editor-list-order button:disabled { opacity: 0.22; cursor: default; }
+.editor-list-order button:focus-visible { outline: 2px solid #fff; outline-offset: -2px; }
 
 .editor-actions { display: flex; gap: 6px; }
 .editor-actions .editor-btn { flex: 1; }
@@ -867,12 +979,16 @@ body.editor-active .hotspot.is-dragging { cursor: grabbing; }
 /* Keep the editor out of the way of the scene title on small screens. */
 @media (max-width: 720px) {
   .editor { width: calc(100vw - 24px); max-height: 52dvh; }
-  body.editor-active .ui-top { padding-top: calc(64px + var(--safe-top)); }
+  body.editor-active .ui-top { padding-top: 64px; }
 }
 
 /* --------------------------------------------------------------- responsive */
 
 @media (max-width: 560px) {
+  /* A phone cannot hold the full title at 20px without clipping it. */
+  :root { --titlebar-height: 46px; }
+  .titlebar { padding-left: calc(14px + var(--safe-left)); padding-right: calc(14px + var(--safe-right)); }
+  .titlebar-title { font-size: 17px; }
   .scene-title { font-size: 0.8125rem; padding: 8px 12px; }
   /* The hint shares the bottom edge with the minimap: let it wrap rather than
      run underneath. */
@@ -884,8 +1000,10 @@ body.editor-active .hotspot.is-dragging { cursor: grabbing; }
 
 /* Landscape phones: the chrome must not eat the short viewport. */
 @media (max-height: 460px) and (orientation: landscape) {
+  :root { --titlebar-height: 42px; }
+  .titlebar-title { font-size: 16px; }
   .ui-top, .ui-bottom { padding-top: 10px; padding-bottom: 10px; }
-  .scene-menu { top: calc(58px + var(--safe-top)); max-height: 70dvh; }
+  .scene-menu { top: calc(58px + var(--chrome-top)); max-height: 70dvh; }
   /* A full-height floor plan would cover most of a landscape phone. */
   .minimap { --minimap-effective-width: min(var(--minimap-width), 34vw); }
 }

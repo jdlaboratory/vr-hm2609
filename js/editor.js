@@ -181,6 +181,15 @@ export class Editor {
     this.tour.onViewChange((view) => this._renderView(view));
     this.tour.onSceneChange((scene) => this._onSceneChange(scene));
 
+    if (this.ui) {
+      // ▲ ▼ in the ☰ list, so the order scenes are shown in can be set from
+      // the tour itself rather than by moving blocks around in the file.
+      this.ui.setSceneMenuEditable({
+        onMove: (sceneId, direction) => this._reorderScene(sceneId, direction),
+        onReorder: (sceneIds) => this._applySceneOrder(sceneIds)
+      });
+    }
+
     if (this.minimap) {
       this.minimap.setEditable(true);
       this.minimap.onPlace((sceneId, position) => this._placeScene(sceneId, position));
@@ -586,10 +595,13 @@ export class Editor {
     this.tour.forgetScene(scene.id);
 
     // A tour whose defaultScene no longer exists falls back to the first scene
-    // with a console warning; say so in the file instead.
-    if (this.config.settings.defaultScene === scene.id) {
+    // with a console warning; say so in the file instead. A file that names no
+    // default is left alone — its entry point is the top of the scene list,
+    // and writing an id here would quietly pin it.
+    const rawSettings = this.config.raw.settings;
+    if (rawSettings && rawSettings.defaultScene === scene.id) {
+      rawSettings.defaultScene = next.id;
       this.config.settings.defaultScene = next.id;
-      if (this.config.raw.settings) this.config.raw.settings.defaultScene = next.id;
     }
 
     this._refreshSceneLists();
@@ -598,8 +610,22 @@ export class Editor {
                  (inbound.length ? ` (화살표 ${inbound.length}개 포함).` : '.'), 'ok');
   }
 
+  /**
+   * Keeps the live default in step with the list when the file pins no
+   * `defaultScene`. Without one the tour opens at the top of the scene list,
+   * so that is what the fallback has to name — including after a reorder.
+   */
+  _syncDefaultScene() {
+    const rawSettings = this.config.raw.settings;
+    const pinned = rawSettings && rawSettings.defaultScene;
+    if (!pinned && this.config.scenes.length) {
+      this.config.settings.defaultScene = this.config.scenes[0].id;
+    }
+  }
+
   /** Re-renders everything that lists scenes: menu, minimap pins, this panel. */
   _refreshSceneLists() {
+    this._syncDefaultScene();
     if (this.ui) {
       this.ui.buildSceneMenu(this.config.scenes);
       if (this.scene) this.ui.setActiveScene(this.scene.id);
@@ -608,6 +634,105 @@ export class Editor {
     this._renderSceneSection();
     this._renderHotspotList();
     this._refreshTargetOptions();
+  }
+
+  /**
+   * Moves one scene one place up or down in the tour's own order — the ☰ menu,
+   * the 대상 장면 dropdown, 추가할 파노라마, and the order scenes are written in.
+   *
+   * Nothing that joins two scenes can break: an arrow points at a scene *id*,
+   * and `settings.defaultScene` is an id too, so neither depends on position.
+   * As with the navigation points, the file's array is reordered by swapping
+   * the two raw objects where they sit rather than being rebuilt from the
+   * model, which would drop any scene config.js refused to load.
+   */
+  _reorderScene(sceneId, direction) {
+    const list = this.config.scenes;
+    const from = list.findIndex((scene) => scene.id === sceneId);
+    const to = from + direction;
+    if (from < 0 || to < 0 || to >= list.length) return;
+
+    const scene = list[from];
+    const neighbour = list[to];
+    list[from] = neighbour;
+    list[to] = scene;
+
+    this._writeSceneOrder(list);
+    this._refreshSceneLists();
+    this._focusSceneGrip(scene.id);
+    this._markDirty();
+    this._status(`"${scene.name}" 순서를 옮겼습니다. 연결은 그대로입니다.`, 'ok');
+  }
+
+  /**
+   * Takes the whole scene list in the order a drag left it.
+   *
+   * The ids have to be the same set the tour already holds. A missing or
+   * unknown one means the menu and the model have drifted apart, and ordering
+   * from it would drop or duplicate a scene — so the move is refused whole
+   * rather than applied in part.
+   */
+  _applySceneOrder(sceneIds) {
+    const list = this.config.scenes;
+    const byId = new Map(list.map((scene) => [scene.id, scene]));
+    if (sceneIds.length !== list.length || !sceneIds.every((id) => byId.has(id))) {
+      console.warn('[tour] Editor ignored a scene order it could not match to the tour.');
+      return;
+    }
+
+    const previous = list.slice();
+    const ordered = sceneIds.map((id) => byId.get(id));
+
+    // The row that travelled furthest is the one that was dragged; naming it
+    // in the status line is more use than "the list changed".
+    let dragged = ordered[0];
+    let furthest = 0;
+    ordered.forEach((scene, index) => {
+      const shift = Math.abs(index - previous.indexOf(scene));
+      if (shift > furthest) {
+        furthest = shift;
+        dragged = scene;
+      }
+    });
+    if (!furthest) return;                     // dropped where it started
+
+    list.length = 0;
+    list.push(...ordered);
+    this._writeSceneOrder(list);
+    this._refreshSceneLists();
+    this._focusSceneGrip(dragged.id);
+    this._markDirty();
+    this._status(`"${dragged.name}" 순서를 옮겼습니다. 연결은 그대로입니다.`, 'ok');
+  }
+
+  /**
+   * Mirrors the scene order into the file's own array.
+   *
+   * Only the slots holding scenes the model knows about are rewritten, in the
+   * model's order. Anything else in `scenes` — a block config.js refused to
+   * load — keeps the index it had, where rebuilding the array would drop it.
+   */
+  _writeSceneOrder(ordered) {
+    const raw = this.config.raw && this.config.raw.scenes;
+    if (!Array.isArray(raw)) return;
+
+    const known = new Set(ordered.map((scene) => scene._raw));
+    const slots = [];
+    raw.forEach((entry, index) => { if (known.has(entry)) slots.push(index); });
+    if (slots.length !== ordered.length) {
+      console.warn('[tour] Editor could not match every scene to the file — ' +
+                   'the menu was reordered, the saved order was not.');
+      return;
+    }
+    ordered.forEach((scene, index) => { raw[slots[index]] = scene._raw; });
+  }
+
+  /** Puts focus back on a row's grip after the menu has been rebuilt. */
+  _focusSceneGrip(sceneId) {
+    if (!this.ui) return;
+    const grip = [...this.ui.el.sceneMenuList.querySelectorAll('.scene-menu-grip')]
+      .find((item) => item.dataset.sceneId === sceneId);
+    if (grip) grip.focus();
   }
 
   /** Keeps the hotspot form's "대상 장면" list in step with the scene list. */
@@ -752,8 +877,8 @@ export class Editor {
       return;
     }
 
-    hotspots.forEach((hotspot) => {
-      const item = el('li');
+    hotspots.forEach((hotspot, index) => {
+      const item = el('li', 'editor-list-row');
       const button = el('button', 'editor-list-item');
       button.type = 'button';
       button.classList.toggle('is-selected', hotspot === this.selected);
@@ -770,8 +895,75 @@ export class Editor {
       button.addEventListener('pointerleave', () => this._highlight(hotspot, false));
 
       item.appendChild(button);
+      item.appendChild(this._orderButtons(hotspot, index, hotspots.length));
       this.hotspotList.appendChild(item);
     });
+  }
+
+  /** The ▲ / ▼ pair that moves one point within its scene. */
+  _orderButtons(hotspot, index, total) {
+    const group = el('span', 'editor-list-order');
+    const name = hotspot.label || hotspot.id;
+
+    [[-1, '▲', '위로'], [1, '▼', '아래로']].forEach(([direction, glyph, word]) => {
+      const button = el('button', '', glyph);
+      button.type = 'button';
+      button.dataset.move = String(direction);
+      button.title = `${word} 옮기기`;
+      button.setAttribute('aria-label', `"${name}" ${word} 옮기기`);
+      button.disabled = direction < 0 ? index === 0 : index === total - 1;
+      button.addEventListener('click', () => this._reorderHotspot(hotspot, direction));
+      group.appendChild(button);
+    });
+    return group;
+  }
+
+  /**
+   * Moves one navigation point one place up or down inside its scene.
+   *
+   * Order is presentation only. What a point *does* is its `target`, and a
+   * target is an id, so no link between two scenes can be broken by reordering
+   * — this only changes the order they are listed and written in.
+   *
+   * The file's own array is reordered by swapping the two raw objects where
+   * they sit, rather than being rebuilt from the model: a hotspot config.js
+   * refused to load has no model entry, and rebuilding would drop it silently.
+   */
+  _reorderHotspot(hotspot, direction) {
+    if (!this.scene) return;
+    const list = this.scene.hotspots;
+    const from = list.indexOf(hotspot);
+    const to = from + direction;
+    if (from < 0 || to < 0 || to >= list.length) return;
+
+    const neighbour = list[to];
+    list[from] = neighbour;
+    list[to] = hotspot;
+
+    const raw = this.scene._raw && this.scene._raw.hotspots;
+    if (Array.isArray(raw)) {
+      const rawFrom = raw.indexOf(hotspot._raw);
+      const rawTo = raw.indexOf(neighbour._raw);
+      if (rawFrom >= 0 && rawTo >= 0) {
+        raw[rawFrom] = neighbour._raw;
+        raw[rawTo] = hotspot._raw;
+      } else {
+        console.warn('[tour] Editor could not find one of these points in the file ' +
+                     '— the list was reordered, the saved order was not.');
+      }
+    }
+
+    this._renderHotspotList();
+    // Keep the pointer over the same button so a run of clicks keeps working;
+    // at the end of the list that button is disabled, so fall back to the row.
+    const row = this.hotspotList.children[to];
+    if (row) {
+      const again = row.querySelector(`[data-move="${direction}"]`);
+      (again && !again.disabled ? again : row.querySelector('.editor-list-item')).focus();
+    }
+    this._markDirty();
+    this._status(`"${hotspot.label || hotspot.id}" 순서를 옮겼습니다. ` +
+                 `연결은 그대로입니다.`, 'ok');
   }
 
   _highlight(hotspot, on) {

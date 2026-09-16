@@ -15,7 +15,8 @@ JavaScript — and the built-in editor writes that file for you.
 1. [Quick start](#1-quick-start)
 2. [Project structure](#2-project-structure)
 3. [The panoramas in this project](#3-the-panoramas-in-this-project)
-4. [Editing the tour](#4-editing-the-tour) — scenes, hotspots, videos, info panels, minimap
+4. [Editing the tour](#4-editing-the-tour) — scenes, hotspots, videos, info panels, minimap,
+   title bar
 5. [The editor (`?edit=1`)](#5-the-editor-edit1)
 6. [Settings reference](#6-settings-reference)
 7. [Replacing the sample assets](#7-replacing-the-sample-assets)
@@ -166,51 +167,53 @@ to `tour.js` through a handful of methods.
 and `011b.jpg`. Scene ids mirror the file names, letter suffixes included, so the mapping
 stays obvious: `006.jpg` → `scene06`, `011b.jpg` → `scene11b`.
 
-**The tour uses 24 of them.** `009a.jpg` and `011b.jpg` were second viewpoints inside rooms
-that already had one, and were dropped; the originals are kept in case they are wanted back.
-Re-running `tools/make-web-equirect.ps1` will regenerate web copies for them, which nothing
-references — delete the two originals if you want the script's output to match the tour
-exactly.
+**The tour uses 22 of them.** Four were dropped as second angles on rooms that already had
+one: `009a` and `011b` never had web copies made, and `scene09` and `scene10` were taken out
+of `tour.json` during the walk-through. Nothing was deleted —
+`assets/panoramas/equirect/` still holds `scene09` and `scene10`, so either can be put back
+by adding it again in `?edit=1` (**추가할 파노라마** lists exactly the panoramas that are on
+disk but not in the tour), with no re-processing.
 
 All originals are 8192 × 4096 equirectangular JPEGs. **They are never read by the website
 and are never modified** — they are the master copies that the two scripts in `tools/`
 derive from.
 
-The tour is ordered as a walk: arrive in the lobby, take in the café and the amenities, pass
-the ticket gate into the B1 exhibition, work through the multi hall and the mural corridors,
-and come out at the lifts.
+The tour is ordered as a walk: arrive at the top of the stairs, come down to the lobby, take
+in the café and the amenities, pass the ticket gate into the B1 exhibition, work through the
+multi hall and the mural corridors, and come out at the lifts.
 
-| Scene id | Name | Source | Minimap x, y |
-| --- | --- | --- | --- |
-| `scene01` | 계단 상부 라운지 | `001.jpg` | 0.29, 0.86 |
-| `scene06` | 중앙 로비 *(default)* | `006.jpg` | 0.46, 0.72 |
-| `scene02` | 카페 | `002.jpg` | 0.63, 0.86 |
-| `scene05` | 물품보관함 라운지 | `005.jpg` | 0.56, 0.78 |
-| `scene03` | 편의시설 복도 | `003.jpg` | 0.8, 0.85 |
-| `scene04` | 수유실 | `004.jpg` | 0.76, 0.79 |
-| `scene07` | 전시 입구 | `007.jpg` | 0.4, 0.66 |
-| `scene12` | 티켓 게이트 | `012.jpg` | 0.5, 0.63 |
-| `scene08` | 멀티홀 인트로 | `008.jpg` | 0.46, 0.55 |
-| `scene23` | 멀티홀 중앙 | `023.jpg` | 0.41, 0.46 |
-| `scene09` | 영상 코너 | `009.jpg` | 0.34, 0.51 |
-| `scene24` | 멀티홀 서편 | `024.jpg` | 0.33, 0.37 |
-| `scene10` | 멀티홀 북편 | `010.jpg` | 0.25, 0.33 |
-| `scene11` | 미디어 아카이브 | `011.jpg` | 0.19, 0.41 |
-| `scene13` | 암막 영상실 | `013.jpg` | 0.095, 0.55 |
-| `scene14` | 영상 복도 | `014.jpg` | 0.095, 0.42 |
-| `scene15` | 연결 복도 | `015.jpg` | 0.095, 0.28 |
-| `scene16` | 벽화 갤러리 A | `016.jpg` | 0.17, 0.145 |
-| `scene17` | 벽화 갤러리 B | `017.jpg` | 0.31, 0.145 |
-| `scene18` | 벽화 갤러리 C | `018.jpg` | 0.45, 0.145 |
-| `scene19` | 벽화 갤러리 D | `019.jpg` | 0.59, 0.145 |
-| `scene20` | 퍼플 갤러리 | `020.jpg` | 0.78, 0.16 |
-| `scene21` | 상영실 | `021.jpg` | 0.89, 0.4 |
-| `scene22` | 엘리베이터 홀 | `022.jpg` | 0.9, 0.87 |
+| Scene id | Name | Source | Minimap x, y | Video point |
+| --- | --- | --- | --- | --- |
+| `scene01` | 계단 위 *(opens here)* | `001.jpg` | 0.2933, 0.884 | Asylum of the Birds |
+| `scene07` | 전시 입구 | `007.jpg` | 0.2408, 0.6927 |  |
+| `scene06` | 중앙 로비 | `006.jpg` | 0.3894, 0.6959 |  |
+| `scene08` | 멀티홀 중앙 | `008.jpg` | 0.3186, 0.5078 | Theatre of Apparitions |
+| `scene11` | 멀티홀 외벽1 | `011.jpg` | 0.1765, 0.3696 |  |
+| `scene24` | 멀티홀 외벽2 | `024.jpg` | 0.315, 0.3173 |  |
+| `scene23` | 멀티홀 외벽3 | `023.jpg` | 0.4504, 0.3397 | Roger the Rat |
+| `scene12` | 티켓 게이트 | `012.jpg` | 0.1442, 0.6617 |  |
+| `scene13` | 복도 1 | `013.jpg` | 0.1026, 0.4907 |  |
+| `scene14` | 복도 2 | `014.jpg` | 0.1042, 0.3148 | I Fink U Freeky |
+| `scene15` | 복도 3 | `015.jpg` | 0.1042, 0.139 |  |
+| `scene17` | 벽화 갤러리 1 | `017.jpg` | 0.2384, 0.1398 |  |
+| `scene16` | 벽화 갤러리 2 | `016.jpg` | 0.3621, 0.1417 |  |
+| `scene18` | 벽화 갤러리 3 | `018.jpg` | 0.5006, 0.138 |  |
+| `scene19` | 벽화 갤러리 4 | `019.jpg` | 0.655, 0.1342 |  |
+| `scene20` | 미디어 갤러리 1 | `020.jpg` | 0.8787, 0.1772 | Ballenesque |
+| `scene21` | 미디어 갤러리 2 | `021.jpg` | 0.8811, 0.4312 | Outland |
+| `scene22` | 엘리베이터 홀 | `022.jpg` | 0.8934, 0.6759 |  |
+| `scene05` | 정원 입구 | `005.jpg` | 0.8027, 0.6143 |  |
+| `scene03` | 화장실 앞 | `003.jpg` | 0.8039, 0.7544 |  |
+| `scene04` | 수유실 | `004.jpg` | 0.8301, 0.9084 |  |
+| `scene02` | 카페 | `002.jpg` | 0.6442, 0.7228 |  |
 
-> **Scene names, connections and positions are a careful first pass, not surveyed fact.**
-> The yaw/pitch of every arrow and every minimap coordinate was estimated from the photos
-> and the floor plan rather than measured. Walk the tour with `?edit=1`, drag whatever sits
-> wrong, and press 저장 — see [section 5](#5-the-editor-edit1).
+**22 scenes, 58 hotspots:** 52 scene-to-scene arrows and 6 Vimeo points. The tour opens at the top of this list.
+
+> **Names and positions have been worked over in the editor, but never surveyed.** Every
+> arrow angle and every minimap coordinate began as an estimate read off the photos and the
+> floor plan; many have since been dragged into place in `?edit=1`, and the scene names are
+> the ones chosen during that pass. If something still sits wrong, drag it and press 저장 —
+> see [section 5](#5-the-editor-edit1).
 
 ---
 
@@ -240,8 +243,8 @@ You never have to work these out by hand — see [the editor](#5-the-editor-edit
    ```
 
    This writes `sceneNN_0.jpg` (1024 px preview) and `sceneNN_1.jpg` (4096 px) into
-   `assets/panoramas/equirect/`, derived from the file name: `020.jpg` → `scene20`,
-   `020b.jpg` → `scene20b`. A letter suffix is how you add a second viewpoint in a room
+   `assets/panoramas/equirect/`, derived from the file name: `025.jpg` → `scene25`,
+   `025b.jpg` → `scene25b`. A letter suffix is how you add a second viewpoint in a room
    you have already numbered.
 3. Add the scene to `tour.json` (next step).
 
@@ -251,11 +254,11 @@ Append an object to the `"scenes"` array:
 
 ```json
 {
-  "id": "scene20",
+  "id": "scene25",
   "name": "테라스",
   "panorama": {
     "type": "equirectangular",
-    "url": "assets/panoramas/equirect/scene20_{z}.jpg",
+    "url": "assets/panoramas/equirect/scene25_{z}.jpg",
     "levels": [{ "width": 1024 }, { "width": 4096 }]
   },
   "initialView": { "yaw": 0, "pitch": 0, "fov": 1.4 },
@@ -280,20 +283,20 @@ In `scene06`:
 
 ```json
 {
-  "id": "scene06-to-scene20",
+  "id": "scene06-to-scene25",
   "type": "scene",
-  "target": "scene20",
+  "target": "scene25",
   "yaw": 1.25,
   "pitch": 0.25,
   "label": "테라스"
 }
 ```
 
-And the return trip, in `scene20`:
+And the return trip, in `scene25`:
 
 ```json
 {
-  "id": "scene20-to-scene06",
+  "id": "scene25-to-scene06",
   "type": "scene",
   "target": "scene06",
   "yaw": -1.9,
@@ -336,6 +339,8 @@ console warning tells you which one — the tour still works.
   players at once.
 - The player is asked not to track the visitor (`dnt=1`), and the byline, portrait and
   title overlays are turned off.
+- On the panorama a video point is a red play button (`#FF0033`, white triangle) so it never
+  reads as one more way to walk — see `.hotspot-video .hotspot-icon` in `css/style.css`.
 
 ### 4.5 Adding an info hotspot
 
@@ -373,8 +378,8 @@ clicking any pin jumps to that scene.
   "title": "",
   "pin": "assets/icons/pin.svg",
   "pinActive": "assets/icons/pin-active.svg",
-  "width": 432,
-  "position": { "corner": "bottom-right", "x": 16, "y": 16 },
+  "width": 560,
+  "position": { "corner": "bottom-right", "x": 25, "y": 30 },
   "startCollapsed": false
 }
 ```
@@ -391,7 +396,7 @@ clicking any pin jumps to that scene.
 | `startCollapsed` | `false` | Open the tour with the plan folded away. |
 
 **Size and placement.** `width` is the panel's width in px; the plan scales to fit it and the
-pins scale with it, so a 24-pin plan stays readable at every size. `position` anchors the
+pins scale with it, so a 22-pin plan stays readable at every size. `position` anchors the
 panel to one corner rather than to absolute coordinates, so it keeps its margin when the
 window is resized:
 
@@ -422,12 +427,43 @@ lands on the coordinate, so a taller replacement will appear to sit somewhere el
 A scene's position is a fraction of the image, not a pixel:
 
 ```json
-"map": { "x": 0.46, "y": 0.72 }
+"map": { "x": 0.3894, "y": 0.6959 }
 ```
 
 `x` runs 0 (left edge) → 1 (right edge), `y` runs 0 (top) → 1 (bottom). Fractions mean the
 coordinates survive replacing the floor plan with a larger export. You do not have to work
 them out: in `?edit=1`, drag the pin or click the plan.
+
+### 4.8 The title bar
+
+The strip across the top is plain HTML rather than configuration — it reads the same on
+every scene, so there is nothing for `tour.json` to vary. Change the wording in
+`index.html`:
+
+```html
+<header class="titlebar" id="titlebar">
+  <h1 class="titlebar-title">Roger Ballen 2026 - Museum Hanmi</h1>
+</header>
+```
+
+Its look is three custom properties at the top of `css/style.css`:
+
+| Property | Default | |
+| --- | --- | --- |
+| `--titlebar-bg` | `#2b2b30` | the bar's background |
+| `--titlebar-height` | `52px` | 46px below 560px wide, 42px on a landscape phone |
+| `--chrome-top` | `--titlebar-height` + the notch inset | derived — do not set it by hand |
+
+Nothing sits *underneath* the bar: the panorama, the UI layer, the scene menu, the editor
+panel and a top-corner minimap are all positioned from `--chrome-top`. So the bar never
+hides part of the image, and a drag that starts at the top of the panorama is still a drag.
+Changing the height means changing `--titlebar-height` and nothing else.
+
+The title is the page's only `<h1>`; the scene name under it is an `<h2>`.
+
+The title is kept to one line — a wrapped title would change the bar's height, and every
+other element is measured from it. A title too long for a phone is truncated with an
+ellipsis rather than pushing the tour down.
 
 ---
 
@@ -445,21 +481,23 @@ and the floor plan updates. Nothing is written to disk until you press **저장 
 ```
 편집기                     ← collapse with the – button
   장면   scene06           ← live camera readout, updates as you drag
+                          (☰ 목록의 손잡이를 끌어 장면 순서를 바꿉니다)
   Yaw    0.25  (14.3°)
   Pitch  0.03  (1.7°)
   FOV    1.28  (73.4°)
   [시작 화면으로 지정]  [되돌리기]
 
-포인트                      24        ← the viewpoint you are standing in
+포인트                      22        ← the viewpoint you are standing in
   이름  [중앙 로비            ]
   006.jpg                            ← which photo this is
-  추가할 파노라마 [scene09a ▾] [추가]
+  추가할 파노라마 [scene09 ▾] [추가]
   [이 포인트 삭제]
 
-이동 포인트                 3         ← the arrows leading out of it
-  카페                     카페        ← click to select; hover to find it on screen
-  계단 위 라운지            계단 상부 라운지
-  전시 입구                 전시 입구
+이동 포인트                 4         ← the points leading out of it
+  카페                     카페   ▲ ▼  ← click to select; hover to find it on screen
+  계단 위 라운지            계단 위 ▲ ▼  ← ▲ ▼ move it up or down the list
+  전시 입구                 전시 입구 ▲ ▼
+  멀티홀 중앙               멀티홀 중앙 ▲ ▼
   [+ 이동 포인트 추가]
   종류 / 대상 장면 / 라벨    ← the selected point's fields
   yaw -1.4 · pitch 0.26  (-80.2° / 14.9°)
@@ -519,8 +557,33 @@ note, so a saved file does not betray which scenes the editor made.
 **Deleting takes the arrows with it.** Any arrow in any other scene that pointed at the
 deleted viewpoint is removed too — otherwise the next reload would drop them anyway, with a
 console warning. The confirmation says how many. If you delete the scene named in
-`settings.defaultScene`, the default moves to the scene you land on. The last remaining
+`settings.defaultScene`, the default moves to the scene you land on. When the file names no
+default — as this one does not — nothing is written: the entry point simply stays the top of
+the list. The last remaining
 scene cannot be deleted; a tour with no scenes does not load.
+
+### Reordering the scene list
+
+Open the **☰** list with the editor running and each row grows a **grip** on its right.
+Drag it and the row follows, the other rows opening to let it through — what you see while
+dragging is the order you get. Let go and it is committed. The grip is a separate control
+from the row itself, so grabbing it never walks into that scene, and a press that goes
+nowhere leaves the list alone.
+
+The list scrolls while you drag against its top or bottom edge, so a scene can be carried
+the length of a 22-row tour in one go. Without a mouse, focus a grip and press **↑ / ↓** —
+one place per press.
+
+That order is the tour's own: the ☰ list, the **대상 장면** dropdown, the order scenes are
+written in `tour.json`, and **which scene the tour opens at** — this tour names no
+`settings.defaultScene`, so the top row is the entry point (see
+[6](#6-settings-reference)). It is not the order a visitor walks in; that is decided by the
+arrows.
+
+**Reordering cannot break a link.** An arrow points at a scene *id*, never at a position, so
+nothing that joins two scenes cares where either one sits in the list. Everything inside a
+scene — its arrows, pin, name, panorama — travels with the row. The one thing the order does
+decide is where the tour opens, above.
 
 ### Moving a navigation point
 
@@ -542,6 +605,21 @@ Three other ways, for when dragging is awkward:
 this one does not link to yet, and selects it. Set **대상 장면** (which scene it leads to)
 and **라벨** (the caption on hover); both take effect immediately. **종류** switches a point
 between a scene jump, a Vimeo modal and an info panel. **삭제** removes the selected point.
+
+### Reordering the points in a scene
+
+The **▲ ▼** buttons at the right of each row move that point one place up or down. The
+order is carried into `tour.json` when you save, so the list reads the way you leave it the
+next time the tour is opened.
+
+**Reordering cannot break a link.** What a point does is its `target`, and a target is a
+scene *id*, never a position — so moving a row changes nothing about where it leads, and the
+matching point in the other scene is not affected either. Ids, targets, labels and angles
+all travel with the row.
+
+Two things the order does *not* change: the arrows already drawn on the panorama keep the
+stacking they were built with until the page is reloaded, and no other scene's list moves.
+It is the order of one scene's points, in the panel and in the file.
 
 ### Moving a minimap pin
 
@@ -600,7 +678,7 @@ The `"settings"` block at the top of `tour.json`:
 
 | Key | Default | Meaning |
 | --- | --- | --- |
-| `defaultScene` | first scene | Scene shown when no `?scene=` is given. An unknown id falls back to the first scene. |
+| `defaultScene` | first scene | Scene shown when no `?scene=` is given. **Left out of this tour on purpose**, so the entry point follows the ☰ list and changes when you reorder it. Name a scene here to pin it instead; an unknown id falls back to the first scene. |
 | `autorotate` | `false` | Slowly pan when the visitor is idle. |
 | `autorotateIdleDelayMs` | `4000` | Idle time before autorotate starts. |
 | `sceneMenu` | `true` | Show the ☰ scene list. |
@@ -623,9 +701,9 @@ Two things in this repository still want a human eye:
 | Estimated arrow positions | every `yaw`/`pitch` in `tour.json` | positions dragged in `?edit=1` |
 | Estimated minimap positions | every `map` block | pins dragged onto the floor plan |
 
-There is no placeholder video or info text left in `tour.json` — the tour is 24 scenes of
-scene-to-scene links and nothing else. Add videos and info panels as you need them ([4.4](#44-adding-a-vimeo-hotspot),
-[4.5](#45-adding-an-info-hotspot)).
+Nothing placeholder is left in `tour.json`: the 22 scenes carry 52 real arrows and 6 real
+Vimeo points (the exhibition films, one per room that shows one). There are **no info
+panels** yet — add them as you need them ([4.5](#45-adding-an-info-hotspot)).
 
 The **hotspot** icons in `assets/icons/` (`arrow.svg`, `video.svg`, `info.svg`) are **not**
 used by default — those icons are inlined in `js/hotspots.js` so they inherit colour and cost
@@ -814,11 +892,12 @@ headless Chrome against this build and passed. To re-check by hand after your ed
 | | Check | Expected |
 | --- | --- | --- |
 | A | Page loads | panorama fills the window |
-| B | Default scene | `settings.defaultScene` is shown, URL gains `?scene=…` |
+| B | Opening scene | the top of the ☰ list is shown, URL gains `?scene=…` |
+| B2 | Drag a new scene to the top, 저장, reload | the tour now opens there |
 | C | Mouse drag / touch drag | view rotates; pinch zooms on touch |
 | D | Click an arrow | scene changes with a short cross-fade |
 | E | Click the return arrow | you are back where you started |
-| F | Click a video hotspot | modal opens with a 16:9 player |
+| F | Click the red play button in `scene01` | modal opens with the Vimeo player, 16:9 |
 | G | Close the modal | **audio stops immediately** (the iframe is removed) |
 | H | Press `Esc` | modal closes, focus returns to the hotspot |
 | I | Narrow the window to 390 px | no horizontal scrollbar, minimap shrinks, modal still fits |
@@ -830,6 +909,12 @@ headless Chrome against this build and passed. To re-check by hand after your ed
 | N2 | 추가 a viewpoint | new scene appears in menu and on the plan, editor jumps to it |
 | N3 | 이 포인트 삭제 | scene and every arrow pointing at it are gone, you land on a neighbour |
 | N4 | Drag an arrow | it follows the pointer, yaw/pitch updates, and it does **not** navigate |
+| N5 | ▲ ▼ on a point | it swaps with its neighbour; ▲ is dead on the first row, ▼ on the last |
+| N6 | 저장 after ▲ ▼ | the diff is only the moved block — every id, target and label intact |
+| N7 | Drag a grip several rows | it crosses **every** row on the way, not one per drag |
+| N8 | Click a grip without moving | nothing reorders, and you do **not** travel to that scene |
+| N9 | Focus a grip, press ↑ / ↓ | the row moves one place |
+| N10 | Walk an arrow after N7 | it still leads where it did; 대상 장면 lists the new order |
 | O | Drag a minimap pin | pin moves, `미니맵 핀 위치` readout updates |
 | O2 | Drag the minimap title bar | panel moves, snaps to the nearest corner, does not collapse |
 | O3 | Move the 크기 slider | panel and pins resize live, readout follows |
@@ -853,18 +938,24 @@ hotspot pulse and all transitions are disabled under `prefers-reduced-motion`.
   its photo and each pin dropped on the room it looked like, but nothing was surveyed. Walk
   the tour with `?edit=1`, drag what sits wrong and press 저장 — this is the main outstanding
   task, and the editor exists to make it quick.
-- **Scene names are inferred from the photos** (카페, 수유실, 벽화 갤러리 A…). Rename them to
-  whatever the client calls these spaces.
+- **Scene names came from the walk-through, not from a floor plan legend** (카페, 수유실,
+  벽화 갤러리 1…). Rename any of them in `?edit=1` — the name follows into the scene menu,
+  the pin, the tab title and every arrow captioned with it.
 - **The floor plan covers B1 only.** `scene01` and `scene07` are around the stairs at the
   level above, and sit on the stair block of the plan for want of anywhere better. A second
   plan per floor would be the honest fix; `settings.minimap` currently takes one image.
-- **24 pins on one small plan is dense.** In the multi hall the pins nearly touch. Fine to
-  read, but if the tour grows, consider a larger `width` or grouping viewpoints.
+- **22 pins on one small plan is dense.** In the multi hall the pins nearly touch. The
+  panel has been widened to 560 px to compensate; if the tour grows again, consider
+  grouping viewpoints rather than widening further.
 - **Still on equirectangular.** Working and fast, but capped at 4096 px. Run
   `tools/make-multires.py` before launch to use the full 8192 px source detail — see
   section 9.
-- **No videos or info panels yet.** The tour is navigation only; both hotspot types still
-  work and are documented in 4.4 and 4.5.
+- **The Vimeo ids carry no privacy hash.** All six are stored as bare numeric ids, which is
+  all a public video needs. If any of those films is set to *unlisted* on Vimeo, it will
+  refuse to play here until the id is replaced with the full share link — see
+  [4.4](#44-adding-a-vimeo-hotspot).
+- **No info panels yet.** That hotspot type works and is documented in 4.5; the tour simply
+  does not use it.
 - **No preloading of the next scene.** Marzipano loads a panorama when you arrive. A
   neighbour-preloading pass would make navigation feel instant, at the cost of bandwidth on
   mobile. Deliberately left out.

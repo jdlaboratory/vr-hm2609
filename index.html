@@ -13,6 +13,16 @@
 <body>
 
   <!-- ==========================================================
+       Title bar. A solid strip across the top; the panorama and
+       the chrome below both start underneath it, so it never
+       covers the image and never swallows a drag.
+       The exhibition title is edited here.
+       ========================================================== -->
+  <header class="titlebar" id="titlebar">
+    <h1 class="titlebar-title">Roger Ballen 2026 - Museum Hanmi</h1>
+  </header>
+
+  <!-- ==========================================================
        Panorama stage. Marzipano renders its canvas inside here.
        ========================================================== -->
   <div id="pano" class="pano" role="application"
@@ -25,7 +35,7 @@
   <div class="ui" id="ui">
 
     <header class="ui-top">
-      <h1 class="scene-title" id="sceneTitle" hidden></h1>
+      <h2 class="scene-title" id="sceneTitle" hidden></h2>
 
       <div class="ui-top-actions">
         <!-- Fullscreen lives up here rather than bottom-right, where the
