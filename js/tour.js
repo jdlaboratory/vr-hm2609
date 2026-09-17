@@ -19,6 +19,44 @@ const Marzipano = window.Marzipano;
 const MAX_RESOLUTION = 4096;
 
 /**
+ * The walk-through transition, in one place.
+ *
+ * Moving forward makes what is ahead of you grow, so the whole move is one
+ * continuous narrowing of the field of view: the scene you are leaving turns
+ * toward the way out and pushes into it, and the scene you arrive in fades in
+ * a step wider than its resting view and settles down to it. Narrowing right
+ * across the cut is what reads as walking rather than as the picture changing.
+ */
+const WALK = {
+  // The room you are leaving holds for fadeDelayMs — long enough to see the
+  // step begin — and then the two rooms cross, finishing together with the
+  // step at leadMs. Starting the fade at once made it feel snatched away;
+  // holding it for the whole step made the tour feel stuck in the old room.
+  leadMs: 1150,      // the step: turning toward the exit and pushing into it
+  fadeDelayMs: 450,  // how long before the two rooms start crossing
+  push: 0.62,        // the fov the outgoing view pushes in to, as a fraction
+  standBack: 1.28,   // how much wider than its resting view the new scene opens
+  settleMs: 2200     // the whole move, measured from the click
+};
+
+/**
+ * The two halves of the move share one motion: you start from a standstill and
+ * are still going at the cut, then carry that speed into the new room and come
+ * to rest there. Marzipano's default easing slows down at the end of *each*
+ * half, which puts a stall right in the middle of the move.
+ */
+const EASE = {
+  intoTheDoorway: (t) => t * t,
+  outIntoTheRoom: (t) => 1 - (1 - t) * (1 - t)
+};
+
+/** Respected for the walk, as it is for every CSS animation in this build. */
+function prefersReducedMotion() {
+  return typeof window.matchMedia === 'function' &&
+         window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+}
+
+/**
  * Builds the Marzipano source + geometry pair for a scene's panorama block.
  * Supports both panorama types so the same tour can mix them during a
  * migration from equirectangular previews to production tiles.
@@ -89,6 +127,7 @@ export class Tour {
   constructor(element, config) {
     this.config = config;
     this.settings = config.settings;
+    this.element = element;
 
     this.viewer = new Marzipano.Viewer(element, {
       controls: { mouseViewMode: 'drag' }
@@ -101,6 +140,8 @@ export class Tour {
     this._loadingHandlers = [];
     this._sceneChangeHandlers = [];
     this._loading = false;
+    /** True while a walk-through transition is running; a second click waits. */
+    this._walking = false;
 
     this._autorotate = this.settings.autorotate
       ? Marzipano.autorotate({ yawSpeed: 0.03, targetPitch: 0, targetFov: Math.PI / 2 })
@@ -174,9 +215,12 @@ export class Tour {
     }
 
     this._setLoading(true);
-    entry.marzipanoScene.switchTo({
-      transitionDuration: options.immediate ? 0 : this.settings.transitionDurationMs
-    });
+    // The walk sets its own fade length so the cross-fade and the step end
+    // together; everything else uses the configured one.
+    const fade = options.transitionDurationMs != null
+      ? options.transitionDurationMs
+      : this.settings.transitionDurationMs;
+    entry.marzipanoScene.switchTo({ transitionDuration: options.immediate ? 0 : fade });
     this._currentId = id;
 
     if (this._autorotate) {
@@ -193,6 +237,130 @@ export class Tour {
    * reviving the cached panorama.
    * @param {string} id
    */
+  /**
+   * Walks to another scene instead of cutting to it — see WALK above.
+   *
+   * `options.from` is the direction of the arrow that was clicked, so the
+   * camera turns to face the doorway before moving into it. Without one (the
+   * ☰ list, a pin on the plan, a link) it pushes straight ahead. Anything that
+   * would make the effect wrong or unwanted — the first scene, a repeat click
+   * mid-walk, reduced motion, the setting turned off — falls back to the plain
+   * cross-fade, so callers never have to decide.
+   */
+  walkTo(id, options = {}) {
+    const arriving = this._ensureScene(id);
+    if (!arriving) {
+      console.warn(`[tour] walkTo("${id}") — no such scene.`);
+      return false;
+    }
+    // A click while the camera is still turning toward the door is a double
+    // click, or impatience with a destination already chosen: let the walk
+    // finish rather than cutting away from it — and say the navigation was
+    // handled, so the caller does not report a failure. The flag is dropped
+    // the moment the new scene appears, so an arrow in the room you have just
+    // walked into works immediately, while it is still settling.
+    if (this._walking) return true;
+
+    const leaving = this._scenes.get(this._currentId);
+    if (!this.settings.walkTransition || !leaving ||
+        this._currentId === id || options.immediate || prefersReducedMotion()) {
+      return this.switchTo(id, options);
+    }
+
+    this._walking = true;
+    // Marzipano stops the drag controls for the length of the turn; this stops
+    // the arrows with them, so a click that would be ignored does not look
+    // like one that was missed.
+    this.element.classList.add('is-walking');
+
+    // Marzipano calls back when the movement ends. If it never does — a scene
+    // torn down mid-walk, a tab hidden at the wrong moment — this keeps the
+    // flag from stranding every later navigation.
+    let crossing = null;
+    const watchdog = window.setTimeout(() => {
+      window.clearTimeout(crossing);
+      this._walking = false;
+      this.element.classList.remove('is-walking');
+    }, WALK.leadMs + 2000);
+
+    const view = leaving.marzipanoScene.view();
+    // Where the visitor was looking before the walk turned the camera, so
+    // coming back later shows the room as they left it rather than the door.
+    const before = { yaw: view.yaw(), pitch: view.pitch(), fov: view.fov() };
+
+    const step = { fov: Math.max(before.fov * WALK.push, this.settings.minFov) };
+    if (options.from) {
+      step.yaw = options.from.yaw;
+      step.pitch = options.from.pitch;
+    }
+
+    const resting = this._restingView(arriving, options.view);
+
+    // The step starts at once; the crossing starts part-way into it. Both rooms
+    // move while they cross — Marzipano steps a movement from the render loop,
+    // so the one being left carries on turning and pushing in even though it is
+    // no longer the viewer's current scene.
+    crossing = window.setTimeout(() => {
+      arriving.marzipanoScene.view().setParameters({
+        yaw: resting.yaw,
+        pitch: resting.pitch,
+        fov: Math.min(resting.fov * WALK.standBack, this.settings.maxFov)
+      });
+      // The view is already set, so switchTo is not asked to set it again. The
+      // fade lasts the rest of the step, so the two end together.
+      this.switchTo(id, { transitionDurationMs: WALK.leadMs - WALK.fadeDelayMs });
+
+      // Started after the switch, not before: Marzipano stops whatever movement
+      // the scene it switches to already has.
+      arriving.marzipanoScene.lookTo({ fov: resting.fov }, {
+        transitionDuration: WALK.settleMs - WALK.fadeDelayMs,
+        ease: EASE.outIntoTheRoom,
+        controlsInterrupt: true
+      });
+    }, WALK.fadeDelayMs);
+
+    leaving.marzipanoScene.lookTo(step, {
+      transitionDuration: WALK.leadMs,
+      ease: EASE.intoTheDoorway
+    }, () => {
+      window.clearTimeout(watchdog);
+      this._walking = false;
+      this.element.classList.remove('is-walking');
+      view.setParameters(before);
+
+      // Marzipano stops whatever movement a scene has when it is switched to,
+      // and the hand-off at the end of the step can stop one too. Re-issuing
+      // the settle here means the arrival always finishes, however far the
+      // first half of it got.
+      // controlsInterrupt keeps the drag controls alive through the settle: it
+      // is a second long, and a tour that ignores the pointer for that long
+      // feels broken. Dragging simply takes over from the movement.
+      arriving.marzipanoScene.lookTo({ fov: resting.fov }, {
+        transitionDuration: Math.max(WALK.settleMs - WALK.leadMs, 200),
+        ease: EASE.outIntoTheRoom,
+        controlsInterrupt: true
+      });
+    });
+
+    return true;
+  }
+
+  /**
+   * Where a scene should come to rest: what the hotspot asked for, falling
+   * back to wherever that scene was left last time — which on a first visit is
+   * its initialView.
+   */
+  _restingView(entry, requested) {
+    const view = entry.marzipanoScene.view();
+    const pick = (key, fallback) =>
+      (requested && requested[key] != null ? requested[key] : fallback);
+    return {
+      yaw: pick('yaw', view.yaw()),
+      pitch: pick('pitch', view.pitch()),
+      fov: pick('fov', view.fov())
+    };
+  }
+
   forgetScene(id) {
     const entry = this._scenes.get(id);
     if (!entry) return;

@@ -92,7 +92,10 @@ const RENDERERS = {
       extraClass: 'hotspot-scene'
     });
     button.addEventListener('click', () => {
-      handlers.onNavigate(hotspot.target, hotspot.targetView || null);
+      // The arrow's own direction is the way out of this room: the walk-through
+      // transition turns the camera to face it before moving through.
+      handlers.onNavigate(hotspot.target, hotspot.targetView || null,
+                          { yaw: hotspot.yaw, pitch: hotspot.pitch });
     });
     return button;
   },

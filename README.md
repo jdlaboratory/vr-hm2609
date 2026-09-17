@@ -692,9 +692,59 @@ The `"settings"` block at the top of `tour.json`:
 | `showSceneName` | `true` | Show the scene name in the top-left. |
 | `showHint` | `true` | Show "Drag to look around" on the first visit only. |
 | `transitionDurationMs` | `500` | Cross-fade between scenes. `0` disables it. |
+| `walkTransition` | `true` | Walk through doorways instead of cutting — see below. `false` leaves the cross-fade alone. |
 | `updateUrlOnSceneChange` | `true` | Keep `?scene=` in the address bar so any view is linkable. |
 | `minFov` / `maxFov` | `0.45` / `1.85` | Zoom limits in radians. |
 | `minimap` | *(none)* | Floor plan in the bottom-right. Its own keys are in [4.7](#47-the-minimap); omit the block entirely for no minimap. |
+
+### The walk-through transition
+
+Clicking an arrow does not cut to the next scene. The camera **turns to face the arrow and
+pushes into it**; a moment later the room you are leaving starts **dissolving while it is
+still moving**, and the new one — opening a step wider than its resting view — settles down
+to it underneath.
+
+The whole move is one continuous narrowing of the field of view, which is the point: moving
+forward makes what is ahead of you grow, so a view that keeps magnifying reads as walking,
+where a plain cross-fade reads as the picture changing. It accelerates from a standstill, is
+still moving as the two rooms cross, and comes to rest in the new one; slowing down at the
+end of each half would put a stall in the middle.
+
+**The dissolve overlaps the step rather than following it.** Both panoramas move while they
+cross — Marzipano steps a movement from the render loop, so the room being left keeps turning
+even though it is no longer the current scene. Waiting for the whole step to finish first
+left that room on screen for a second with nothing happening, which read as the tour being
+stuck; starting the fade at the very first frame read as being snatched away before you had
+seen the step begin. So it holds briefly, then crosses.
+
+| | |
+| --- | --- |
+| `fadeDelayMs` **450 ms** | the room you are leaving turns and pushes in at full opacity — you see the step start |
+| `leadMs` **1150 ms** | the step in full: the crossing runs from 450 ms to here, both rooms moving |
+| `settleMs` **2200 ms** | the whole move from the click; the last second is the new room settling |
+
+The scene title, the ☰ list, the pin on the plan and the URL all change when the crossing
+begins, not at the click — the tour says where you are when you can see it.
+
+- **The ☰ list, a pin on the plan and a `?scene=` link** have no doorway to turn toward, so
+  they push straight ahead instead. The first scene of a visit simply appears; there is
+  nowhere to walk from.
+- **A click while the camera is still turning is ignored** — it is a double click, or
+  impatience with a destination already chosen. The arrows stop taking clicks for that
+  second (`.pano.is-walking`) so a dead button never looks like a missed one; Marzipano
+  stops the drag controls over the same stretch. Once the new scene is showing, an arrow in
+  it works immediately, while the view is still settling.
+- **Walking back shows the room as you left it**, not the doorway you walked out of: the
+  camera's position is restored behind the transition.
+- **`prefers-reduced-motion` turns it off**, as it does every animation in this build, and
+  so does `"walkTransition": false`.
+
+The timings live in one `WALK` block at the top of `js/tour.js`. To make the whole thing
+quicker or slower, scale `fadeDelayMs`, `leadMs` and `settleMs` together; to change only how
+long the old room holds before the crossing, move `fadeDelayMs` alone. `push` and `standBack` are
+distances, not speeds: changing them changes how far you seem to travel, not how long it
+takes. `settings.transitionDurationMs` still sets the fade for everything that is **not** a
+walk — the walk uses `leadMs` so its fade and its step end together.
 
 ---
 
@@ -914,7 +964,9 @@ after your edits:
 | B2 | Drag a new scene to the top, 저장, reload | the tour now opens there |
 | C | Mouse drag / touch drag | view rotates; pinch zooms on touch |
 | D | Click an arrow | scene changes with a short cross-fade |
-| E | Click the return arrow | you are back where you started |
+| E | Click the return arrow | you are back where you started, looking the way you were |
+| E2 | Watch an arrow click closely | the old room turns for a beat at full opacity, **then** the two cross while both still move |
+| E3 | Turn on reduced motion, click an arrow | it cuts straight through, no walk |
 | F | Click the red play button in `scene01` | modal opens with the Vimeo player, 16:9 |
 | G | Close the modal | **audio stops immediately** (the iframe is removed) |
 | H | Press `Esc` | modal closes, focus returns to the hotspot |

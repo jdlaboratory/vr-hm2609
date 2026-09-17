@@ -124,6 +124,11 @@ button { font: inherit; }
 
 body.editor-picking .pano { cursor: crosshair; }
 
+/* While the camera is turning toward a doorway, the arrows go with it: a click
+   during the walk is ignored (tour.js), and a live-looking button that does
+   nothing reads as a bug. Marzipano has already stopped the drag controls. */
+.pano.is-walking .hotspot { pointer-events: none; }
+
 /* ------------------------------------------------------------- UI chrome */
 
 .ui {

@@ -133,7 +133,7 @@ async function start() {
 
   // ------------------------------------------------------------- hotspots
   const hotspots = installHotspots(tour, config, {
-    onNavigate: (targetId, targetView) => goToScene(targetId, targetView),
+    onNavigate: (targetId, targetView, from) => goToScene(targetId, targetView, from),
 
     onOpenVideo: (hotspot, opener) => {
       // config.js already guaranteed a valid numeric video id; this is a
@@ -161,12 +161,14 @@ async function start() {
   });
 
   // -------------------------------------------------------- scene routing
-  function goToScene(sceneId, targetView) {
+  function goToScene(sceneId, targetView, from) {
     if (!sceneById.has(sceneId)) {
       console.warn(`[tour] Unknown scene "${sceneId}" — loading "${settings.defaultScene}".`);
       sceneId = settings.defaultScene;
     }
-    const ok = tour.switchTo(sceneId, { view: targetView || undefined });
+    // walkTo decides for itself when a walk would be wrong — the first scene,
+    // reduced motion — and cuts instead.
+    const ok = tour.walkTo(sceneId, { view: targetView || undefined, from: from || null });
     if (!ok) {
       ui.showError(`Unable to show "${sceneId}". The panorama may be missing.`);
       return;

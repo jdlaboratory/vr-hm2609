@@ -24,6 +24,9 @@ const DEFAULT_SETTINGS = {
   showSceneName: true,
   showHint: true,
   transitionDurationMs: 500,
+  // Walk-through transition: the camera turns toward the way out and pushes
+  // into it before the cross-fade. false falls back to the cross-fade alone.
+  walkTransition: true,
   updateUrlOnSceneChange: true,
   // Vertical field-of-view limits, in radians.
   minFov: 0.45,            // ~26deg  (zoomed in)
