@@ -92,8 +92,8 @@
           "id": "scene07-to-scene06",
           "type": "scene",
           "target": "scene06",
-          "yaw": 1.639,
-          "pitch": 0.213,
+          "yaw": 1.634,
+          "pitch": 0.118,
           "label": "중앙 로비"
         },
         {
@@ -108,8 +108,8 @@
           "id": "scene07-to-scene12",
           "type": "scene",
           "target": "scene12",
-          "yaw": -1.37,
-          "pitch": 0.105,
+          "yaw": -1.262,
+          "pitch": 0.053,
           "label": "티켓 게이트"
         },
         {
@@ -124,8 +124,8 @@
           "id": "scene07-hs2",
           "type": "scene",
           "target": "scene11",
-          "yaw": -0.861,
-          "pitch": 0.064,
+          "yaw": -0.859,
+          "pitch": 0.07,
           "label": "멀티홀 외벽1"
         }
       ]
@@ -140,15 +140,15 @@
         "url": "assets/panoramas/equirect/scene06_{z}.jpg",
         "levels": [{ "width": 1024 }, { "width": 4096 }]
       },
-      "initialView": { "yaw": 1.575, "pitch": 0.016, "fov": 1.158 },
+      "initialView": { "yaw": -1.503, "pitch": 0.006, "fov": 1.158 },
       "map": { "x": 0.3894, "y": 0.6959 },
       "hotspots": [
         {
           "id": "scene06-to-scene02",
           "type": "scene",
           "target": "scene02",
-          "yaw": -1.4,
-          "pitch": 0.26,
+          "yaw": -1.453,
+          "pitch": 0.062,
           "label": "카페"
         },
         {
@@ -261,8 +261,8 @@
           "id": "scene11-hs2",
           "type": "scene",
           "target": "scene24",
-          "yaw": 1.373,
-          "pitch": 0.111,
+          "yaw": 1.379,
+          "pitch": 0.073,
           "label": "멀티홀 외벽2"
         },
         {
@@ -308,8 +308,8 @@
           "id": "scene24-hs3",
           "type": "scene",
           "target": "scene08",
-          "yaw": 0.044,
-          "pitch": 0.15,
+          "yaw": 0.045,
+          "pitch": 0.113,
           "label": "멀티홀 중앙"
         }
       ]
@@ -736,7 +736,7 @@
         "url": "assets/panoramas/equirect/scene05_{z}.jpg",
         "levels": [{ "width": 1024 }, { "width": 4096 }]
       },
-      "initialView": { "yaw": 2.342, "pitch": 0.021, "fov": 1.195 },
+      "initialView": { "yaw": 2.904, "pitch": 0.025, "fov": 1.158 },
       "map": { "x": 0.8027, "y": 0.6143 },
       "hotspots": [
         {
@@ -744,7 +744,7 @@
           "type": "scene",
           "target": "scene02",
           "yaw": 3.063,
-          "pitch": 0.21,
+          "pitch": 0.108,
           "label": "카페"
         },
         {
@@ -836,8 +836,8 @@
           "id": "scene02-to-scene06",
           "type": "scene",
           "target": "scene06",
-          "yaw": -3.05,
-          "pitch": 0.045,
+          "yaw": -3.09,
+          "pitch": 0.023,
           "label": "중앙 로비"
         },
         {
