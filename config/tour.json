@@ -59,8 +59,8 @@
           "id": "scene01-to-scene07",
           "type": "scene",
           "target": "scene07",
-          "yaw": 0.412,
-          "pitch": 0.616,
+          "yaw": 0.494,
+          "pitch": 0.487,
           "label": "전시 입구"
         },
         {
@@ -163,8 +163,8 @@
           "id": "scene06-to-scene07",
           "type": "scene",
           "target": "scene07",
-          "yaw": 1.6,
-          "pitch": 0.2,
+          "yaw": 1.603,
+          "pitch": 0.062,
           "label": "전시 입구"
         },
         {
@@ -435,7 +435,7 @@
         "url": "assets/panoramas/equirect/scene14_{z}.jpg",
         "levels": [{ "width": 1024 }, { "width": 4096 }]
       },
-      "initialView": { "yaw": -0.341, "pitch": 0.06, "fov": 1.158 },
+      "initialView": { "yaw": 0.121, "pitch": 0.079, "fov": 1.158 },
       "map": { "x": 0.1042, "y": 0.3148 },
       "hotspots": [
         {
@@ -468,7 +468,7 @@
         "url": "assets/panoramas/equirect/scene15_{z}.jpg",
         "levels": [{ "width": 1024 }, { "width": 4096 }]
       },
-      "initialView": { "yaw": -0.008, "pitch": 0.073, "fov": 1.158 },
+      "initialView": { "yaw": 0.064, "pitch": 0.023, "fov": 1.158 },
       "map": { "x": 0.1042, "y": 0.139 },
       "hotspots": [
         {
@@ -483,8 +483,8 @@
           "id": "scene15-to-scene16",
           "type": "scene",
           "target": "scene17",
-          "yaw": -0.044,
-          "pitch": 0.128,
+          "yaw": -0.025,
+          "pitch": 0.061,
           "label": "벽화 갤러리 1"
         }
       ]
@@ -499,15 +499,15 @@
         "url": "assets/panoramas/equirect/scene17_{z}.jpg",
         "levels": [{ "width": 1024 }, { "width": 4096 }]
       },
-      "initialView": { "yaw": 0.272, "pitch": 0.011, "fov": 1.195 },
+      "initialView": { "yaw": 0.986, "pitch": -0.017, "fov": 1.158 },
       "map": { "x": 0.2384, "y": 0.1398 },
       "hotspots": [
         {
           "id": "scene17-to-scene16",
           "type": "scene",
           "target": "scene16",
-          "yaw": 0.814,
-          "pitch": 0.064,
+          "yaw": 0.879,
+          "pitch": 0.037,
           "label": "벽화 갤러리 2"
         },
         {
@@ -530,7 +530,7 @@
         "url": "assets/panoramas/equirect/scene16_{z}.jpg",
         "levels": [{ "width": 1024 }, { "width": 4096 }]
       },
-      "initialView": { "yaw": 0.5, "pitch": -0.048, "fov": 1.195 },
+      "initialView": { "yaw": 0.955, "pitch": -0.024, "fov": 1.158 },
       "map": { "x": 0.3621, "y": 0.1417 },
       "hotspots": [
         {
@@ -545,8 +545,8 @@
           "id": "scene16-to-scene17",
           "type": "scene",
           "target": "scene18",
-          "yaw": 0.876,
-          "pitch": 0.111,
+          "yaw": 0.92,
+          "pitch": 0.034,
           "label": "벽화 갤러리 3"
         }
       ]
@@ -561,7 +561,7 @@
         "url": "assets/panoramas/equirect/scene18_{z}.jpg",
         "levels": [{ "width": 1024 }, { "width": 4096 }]
       },
-      "initialView": { "yaw": 0.455, "pitch": -0.002, "fov": 1.195 },
+      "initialView": { "yaw": 1.134, "pitch": -0.06, "fov": 1.158 },
       "map": { "x": 0.5006, "y": 0.138 },
       "hotspots": [
         {
@@ -576,8 +576,8 @@
           "id": "scene18-to-scene19",
           "type": "scene",
           "target": "scene19",
-          "yaw": 1.033,
-          "pitch": 0.123,
+          "yaw": 1.059,
+          "pitch": 0.02,
           "label": "벽화 갤러리 4"
         }
       ]
@@ -592,23 +592,23 @@
         "url": "assets/panoramas/equirect/scene19_{z}.jpg",
         "levels": [{ "width": 1024 }, { "width": 4096 }]
       },
-      "initialView": { "yaw": 0.544, "pitch": -0.011, "fov": 1.195 },
+      "initialView": { "yaw": 1.149, "pitch": -0.083, "fov": 1.158 },
       "map": { "x": 0.655, "y": 0.1342 },
       "hotspots": [
         {
           "id": "scene19-to-scene18",
           "type": "scene",
           "target": "scene18",
-          "yaw": -2.078,
-          "pitch": 0.208,
+          "yaw": -2.114,
+          "pitch": 0.071,
           "label": "벽화 갤러리 3"
         },
         {
           "id": "scene19-to-scene20",
           "type": "scene",
           "target": "scene20",
-          "yaw": 0.932,
-          "pitch": 0.161,
+          "yaw": 0.971,
+          "pitch": 0.035,
           "label": "미디어 갤러리 1"
         }
       ]
@@ -836,8 +836,8 @@
           "id": "scene02-to-scene06",
           "type": "scene",
           "target": "scene06",
-          "yaw": -3.041,
-          "pitch": 0.12,
+          "yaw": -3.05,
+          "pitch": 0.045,
           "label": "중앙 로비"
         },
         {
