@@ -35,22 +35,37 @@ JavaScript — and the built-in editor writes that file for you.
 | What you want | Windows | macOS / Linux |
 | --- | --- | --- |
 | **Show the tour** | **`start-windows.bat`** | **`start-macos.command`** |
-| **Edit it** (saving on) | **`start-editor-windows.bat`** | `./start-macos.command --edit` |
+| **Edit it** | **`start-editor-windows.bat`** | **`start-editor-macos.command`** |
 
 A small window opens, the tour launches in your browser, and that is it. Close the window
 (or press `Ctrl+C` in it) to stop.
 
-The two Windows files differ only in one flag. `start-windows.bat` serves the site
-**read-only** — nothing reached through it can overwrite the tour, which is what you want
-when someone else is looking at it. `start-editor-windows.bat` is the same launcher with
-`--edit`: it opens straight into the editor and lets its 저장 button write
-`config/tour.json` (keeping the version it replaces as `config/tour.json.bak`). There is no
-separate macOS file; pass `--edit` to the one launcher instead.
+`start-windows.bat` and `start-macos.command` serve the site **read-only** — nothing
+reached through them can overwrite the tour, which is what you want when someone else is
+looking at it.
+
+The editor launchers are the same servers with editing switched on, and they differ from
+each other:
+
+| | `start-editor-windows.bat` | `start-editor-macos.command` |
+| --- | --- | --- |
+| Opens at `?edit=1` | yes | yes |
+| Writes `config/tour.json` | when you press 저장 | **by itself, on every change** |
+| Picks up edits to `css/`, `js/`, `index.html` | on a manual reload | **as soon as you save the file** |
+| Flags it passes | `--edit` | `--autosave --live` |
+
+Either one can have the other's behaviour — the flags are just flags, and
+`./start-macos.command --edit` still gives you the plain button-press editor. See
+[§1 Options](#options) for what each flag does, and
+[Autosave and live reload](#autosave-and-live-reload) for how they behave while you
+work.
 
 > **macOS, first time only.** macOS will not run a file it does not consider executable.
-> Open Terminal in this folder once and run `chmod +x start-macos.command`. After that,
-> double-clicking works forever. If you would rather not, you can always start it with
-> `bash start-macos.command`.
+> Open Terminal in this folder once and run
+> `chmod +x start-macos.command start-editor-macos.command`. After that, double-clicking
+> works forever. If you would rather not, you can always start either one with
+> `bash start-macos.command`. (The editor launcher runs its companion through `bash`, so
+> only the file you actually double-click needs the permission bit.)
 
 **Why is a launcher needed at all?** The tour reads `config/tour.json` with `fetch()`, which
 every browser blocks on `file://` pages. So `index.html` cannot simply be opened from
@@ -64,7 +79,7 @@ dependencies.
 
 ### Options
 
-All three launchers pass their arguments straight through:
+All four launchers pass their arguments straight through:
 
 ```bash
 start-windows.bat --edit          # what start-editor-windows.bat does for you
@@ -73,12 +88,21 @@ start-windows.bat --port 9000     # choose the port
 start-windows.bat --no-browser    # do not open a browser
 
 start-editor-windows.bat --lan    # editor, and reachable from a phone too
-./start-macos.command --edit      # same flags on macOS
+
+./start-macos.command --lan          # same flags on macOS
+./start-editor-macos.command --lan   # editor there too
+
+# the two the macOS editor launcher turns on for you
+tools/serve.py --autosave         # editor saves every change itself (implies --edit)
+tools/serve.py --live             # reload the open page when a source file changes
 ```
 
 `--edit` does two things: it opens the browser at `?edit=1`, and it lets the local server
 accept `PUT /api/tour-config`, which is how the editor's **저장 (Save)** button writes
-`config/tour.json`. (Two read-only companions, `GET /api/tour-config` and
+`config/tour.json`. `--autosave` turns that button into a formality — the editor writes
+every change by itself — and implies `--edit`, so you never have to pass both.
+`--live` is unrelated to saving: it watches `index.html`, `css/` and `js/` and updates the
+open page when you save one of them. (Two read-only companions, `GET /api/tour-config` and
 `GET /api/panoramas`, answer on any local server: the editor uses them to tell you up front
 whether saving will work, and which panoramas a new viewpoint could use.) Without `--edit` the server is strictly read-only, so nothing can
 overwrite the tour by accident. Combining `--edit` with `--lan` exposes that write endpoint
@@ -121,7 +145,8 @@ the page.
 /
 ├── start-windows.bat           ← double-click on Windows (read-only)
 ├── start-editor-windows.bat    ← double-click on Windows to edit (saving on)
-├── start-macos.command         ← double-click on macOS / Linux
+├── start-macos.command         ← double-click on macOS / Linux (read-only)
+├── start-editor-macos.command  ← double-click on macOS / Linux to edit (autosave + live reload)
 ├── index.html                  page shell + UI markup
 ├── css/style.css               all styling
 ├── js/
@@ -132,11 +157,12 @@ the page.
 │   ├── minimap.js              floor plan + pins, bottom right
 │   ├── modal.js                accessible dialog + Vimeo embed + info content
 │   ├── ui.js                   scene title, scene menu, fullscreen, loader, errors
+│   ├── livereload.js           dev only: reloads the page when a source file changes
 │   └── editor.js               ?edit=1 developer tool
 ├── config/
 │   └── tour.json               ← the entire tour lives here
 ├── assets/
-│   ├── icons/                  pin.svg + pin-active.svg (minimap), optional hotspot icons
+│   ├── icons/                  optional hotspot icons (the defaults are inlined in JS)
 │   ├── meta/                   metaimg.png — the social sharing card
 │   ├── source-map/             floor plan used by the minimap
 │   ├── source-panoramas/       ORIGINAL 8192×4096 photos — never modified
@@ -344,8 +370,10 @@ console warning tells you which one — the tour still works.
   players at once.
 - The player is asked not to track the visitor (`dnt=1`), and the byline, portrait and
   title overlays are turned off.
-- On the panorama a video point is a red play button (`#FF0033`, white triangle) so it never
-  reads as one more way to walk — see `.hotspot-video .hotspot-icon` in `css/style.css`.
+- On the panorama a video point wears the same dark circle as a 이동 포인트; only the
+  glyph differs — an oversized white play triangle (44px against the 22px the other types
+  share) that reads as a film without breaking the family. See
+  `.hotspot-video .hotspot-icon svg` in `css/style.css`.
 
 ### 4.5 Adding an info hotspot
 
@@ -373,16 +401,14 @@ view looks right and press **시작 화면으로 지정 (Use current view)**.
 ### 4.7 The minimap
 
 The floor plan is driven by `settings.minimap` plus one `map` block per scene. Every scene
-with a `map` gets a pin; the scene you are standing in swaps to the highlight pin and
-clicking any pin jumps to that scene.
+with a `map` gets a dot; the scene you are standing in sends echo rings out across the
+plan, scenes holding a video are orange, and clicking any dot jumps to that scene.
 
 ```json
 "minimap": {
   "enabled": true,
   "image": "assets/source-map/hm_map.png",
   "title": "",
-  "pin": "assets/icons/pin.svg",
-  "pinActive": "assets/icons/pin-active.svg",
   "width": 560,
   "position": { "corner": "bottom-right", "x": 25, "y": 30 },
   "startCollapsed": false
@@ -394,14 +420,49 @@ clicking any pin jumps to that scene.
 | `enabled` | `true` | `false` hides the minimap without deleting the coordinates. |
 | `image` | — | **Required.** Floor plan, any web image format. It supplies its own background — see below. Without it the minimap turns itself off with a console warning. |
 | `title` | `""` | Caption above the plan. Empty (as shipped) leaves only the collapse chevron, tucked into the corner — the header strip shrinks with it rather than pushing the plan down. |
-| `pin` | `assets/icons/pin.svg` | Pin for every scene. |
-| `pinActive` | `assets/icons/pin-active.svg` | Pin for the scene currently on screen. |
 | `width` | `260` | Panel width in px, clamped to 140–560. Narrow screens cap it further. |
 | `position` | bottom-right, 16/16 | Where the panel sits — see below. |
 | `startCollapsed` | `false` | Open the tour with the plan folded away. |
 
+**The dots.** Each placed scene is a small circle drawn by `css/style.css` — there is no pin
+artwork and no `pin`/`pinActive` setting (a leftover pair in an older `tour.json` is
+ignored). The dot is centred on its stored coordinate, and wears one of three states:
+
+| State | Looks like | Means |
+| --- | --- | --- |
+| resting | near-black circle, white hairline ring | a scene you can walk to |
+| `.has-video` | **orange** | that scene holds at least one Vimeo point |
+| `.is-active` | **echo rings** spreading out of the dot, and a shallow breath on the dot itself | the scene on screen |
+
+The open scene echoes rather than changing colour, because the dot may already be carrying
+the orange that means "there is a video here" and one dot cannot say two things in one
+colour. Two rings run 2.4 s apart on a 1.2 s stagger, so the plan always has one on its way
+out rather than a gap between beats, and they are drawn in `currentColor` — on a video
+scene the echo is orange too.
+
+Details worth knowing if you retune it:
+
+- The rings grow by **width and height, not `transform: scale()`**. Scaling would blow the
+  1.5 px stroke up to 5 px on the way out, and a thickening, blurring ring does not read as
+  one ring travelling outward.
+- Their timing is **`linear`**. The project's `--ease` covers most of the travel in the
+  first third and then hangs, which reads as a stutter rather than a ripple.
+- They rest at `opacity: 0` and are `pointer-events: none`, so stopping the animation hides
+  them cleanly and a ring well outside the dot never eats a click meant for it.
+- Both the rings and the breath **stop under the cursor and mid-drag**, where they read as a
+  rendering fault rather than a highlight.
+- Under `prefers-reduced-motion` there is no echo at all, so the open scene gets a standing
+  white ring instead — the state still has to be visible when the animation is not.
+
+The dot itself is a `<span class="minimap-pin-dot">` inside the button rather than the
+button's own background: the breath is an opacity animation, and a parent's opacity would
+drag the echo rings down with it.
+
+Three custom properties at the top of the `.minimap` block in `css/style.css` cover the
+look: `--minimap-pin-width`, `--minimap-pin-fill` and `--minimap-pin-video`.
+
 **Size and placement.** `width` is the panel's width in px; the plan scales to fit it and the
-pins scale with it, so a 22-pin plan stays readable at every size. `position` anchors the
+dots scale with it, so a 22-dot plan stays readable at every size. `position` anchors the
 panel to one corner rather than to absolute coordinates, so it keeps its margin when the
 window is resized:
 
@@ -423,11 +484,6 @@ and a blacked-out gallery while still letting the panorama through. Swap in an i
 ground at all and the lines will float unreadably over bright walls; swap in a fully opaque
 one and you get a hard rectangle. The chevron, and a title if you set one, keep a text shadow —
 they have nothing behind them either.
-
-The two pins are separate SVG files rather than one file recoloured in CSS, so the highlight
-colour is a decision you make in `assets/icons/` — swap in your own artwork and nothing in
-the code needs to know. Keep both files the same size and shape: the pin's **tip** is what
-lands on the coordinate, so a taller replacement will appear to sit somewhere else.
 
 A scene's position is a fraction of the image, not a pixel:
 
@@ -654,15 +710,15 @@ Dragging the title bar never folds the panel away, and a plain click on it still
 
 | Button | What happens |
 | --- | --- |
-| **저장** | `PUT`s the whole file to the local server, which writes `config/tour.json` and keeps the previous version as `config/tour.json.bak` |
+| **저장** | `PUT`s the whole file to the local server, which writes `config/tour.json`. The first save of each server run copies the file it replaces to `config/tour.json.bak` |
 | **JSON 복사** | Copies the file to the clipboard |
 | **내려받기** | Downloads `tour.json` for you to drop into `config/` yourself |
 
-**저장 only works on a server started with `--edit`.** On Windows, double-click
-**`start-editor-windows.bat`** — that is the whole point of that file. Elsewhere use
-`./start-macos.command --edit` or `tools/serve.py --edit`. Double-clicking the plain
-`start-windows.bat` and then typing `?edit=1` yourself gives you the editor but a read-only
-server, which is the usual reason saving fails.
+**저장 only works on a server started with `--edit`.** Double-click
+**`start-editor-windows.bat`** on Windows or **`start-editor-macos.command`** on macOS —
+that is the whole point of those files. Elsewhere use `tools/serve.py --edit`.
+Double-clicking a plain launcher and then typing `?edit=1` yourself gives you the editor
+but a read-only server, which is the usual reason saving fails.
 
 You do not have to discover that by losing work: the editor asks the server at startup
 whether it will accept a save, and puts a yellow warning under the buttons when it will not.
@@ -679,6 +735,47 @@ cannot replace the tour with something that does not load.
 The saved file is the file you had, with your edits in it: key order, `_source` notes,
 comments in `_README` and the hand-tuned formatting all survive. A save that changes one
 arrow produces a two-line diff.
+
+**`config/tour.json.bak` is a snapshot of where you started, not of your last save.** It is
+written once per server run, before the first save, and then left alone. On a server with
+`--autosave` a per-save backup would be a copy from one second ago, which is no undo at
+all; this way stopping the server and copying `.bak` back always returns you to the tour as
+it was when you opened the editor.
+
+### Autosave and live reload
+
+Two conveniences for working on the tour rather than showing it. Both are off unless the
+server was started with the flag, and `start-editor-macos.command` starts it with both.
+
+**`--autosave`** — the editor writes `config/tour.json` on every change; 저장 becomes a way
+to skip the wait rather than something you have to remember. It waits 600 ms after you stop
+before writing, so dragging a point across the panorama is one save and not eighty, and
+saves are queued rather than overlapped, so two of them can never race and leave the older
+one on disk. A change the file validator rejects — an arrow pointing at a scene that no
+longer exists — holds autosave rather than failing it: the panel says so, and fixing the
+point lets the next change through. The note under the buttons tells you which mode you are
+in before you touch anything.
+
+**`--live`** — the server watches `index.html`, `css/` and `js/`, and tells the open page
+when one of them changes:
+
+- a **`.css`** change is swapped into the running page. The panorama keeps its position,
+  the editor keeps its state, and you see the new styling immediately.
+- **anything else** reloads the page, because the JavaScript it is running is now stale.
+  The scene you were in survives — app.js keeps it in the URL — and the editor is asked to
+  finish any autosave still on its timer first, so a reload cannot swallow an edit you made
+  a moment earlier.
+- **restarting the server** reloads the page too. The browser reconnects by itself, notices
+  it is talking to a different run, and reloads — which is what you want after editing
+  `tools/serve.py`.
+
+`config/` is deliberately *not* watched: the editor writes `tour.json` itself, and reloading
+on it would mean autosave kicking the page out from under you every time you moved a pin.
+
+The browser end is `js/livereload.js`, and app.js only imports it when the page is being
+served from this machine or a private network address — a deployed tour never downloads it,
+and never asks a static host for an endpoint it cannot have. The server end is
+`GET /api/live`, a server-sent-events stream that exists only under `--live`.
 
 ---
 
@@ -768,9 +865,10 @@ panels** yet — add them as you need them ([4.5](#45-adding-an-info-hotspot)).
 The **hotspot** icons in `assets/icons/` (`arrow.svg`, `video.svg`, `info.svg`) are **not**
 used by default — those icons are inlined in `js/hotspots.js` so they inherit colour and cost
 no extra request. To use a custom image for one hotspot, add
-`"icon": "assets/icons/my-icon.svg"` to it. The **minimap** pins are the opposite: `pin.svg`
-and `pin-active.svg` are real files, loaded as images, precisely so you can restyle them
-without touching code.
+`"icon": "assets/icons/my-icon.svg"` to it. The **minimap** dots are drawn in CSS for the
+same reason — they have three states between them, and a state is a class rather than a
+file. Recolour or resize them through the custom properties at the top of the `.minimap`
+block in `css/style.css`.
 
 The floor plan is used exactly as it sits in `assets/source-map/`: it is already web-sized,
 and it already carries the translucent ground the panel relies on, so unlike the panoramas it
@@ -933,7 +1031,10 @@ directory listings are not required.
 
 - **Do not upload `assets/source-panoramas/`.** It is ~30 MB of masters the site never
   loads. Exclude it, or keep it out of the deployed branch.
-- `start-windows.bat`, `start-macos.command` and `tools/` are development helpers. They are
+- `js/livereload.js` is a development file, but it is safe to upload and there is no
+  reason to strip it: app.js only imports it when the page came from localhost or a private
+  network address, so a visitor never downloads it.
+- The four `start-*` launchers and `tools/` are development helpers. They are
   harmless if uploaded (a static host will never execute them) but there is no reason to.
 - The tiles and panoramas are immutable once generated — set a long `Cache-Control`
   (`max-age=31536000`) on `assets/**` and a short one on `config/tour.json` so content
@@ -971,14 +1072,19 @@ after your edits:
 | E | Click the return arrow | you are back where you started, looking the way you were |
 | E2 | Watch an arrow click closely | the old room turns for a beat at full opacity, **then** the two cross while both still move |
 | E3 | Turn on reduced motion, click an arrow | it cuts straight through, no walk |
-| F | Click the red play button in `scene01` | modal opens with the Vimeo player, 16:9 |
+| F | Click the play-triangle point in `scene01` | modal opens with the Vimeo player, 16:9 |
 | G | Close the modal | **audio stops immediately** (the iframe is removed) |
 | H | Press `Esc` | modal closes, focus returns to the hotspot |
 | I | Narrow the window to 390 px | no horizontal scrollbar; the plan caps at 52vw and the hint clears it |
 | I2 | Landscape phone, open a video | the 16:9 player is capped by the **height** and stays on screen |
 | I3 | `?edit=1` on a phone | the panel is a sheet across the top; scene title and ☰ sit below it, reachable |
-| J | Minimap | one pin per placed scene; the open scene's pin is the highlight colour |
-| K | Click another pin | that scene loads and its pin becomes the highlighted one |
+| J | Minimap | one dot per placed scene; rings spread out of the open scene's dot, one every 1.2 s |
+| J2 | Look at a scene holding a Vimeo point | its dot is orange — and so are its echo rings while it is the open scene |
+| J3 | Hover the open scene's dot | the rings and the breath both stop while the cursor is on it |
+| J4 | Turn on reduced motion | no echo; the open scene's dot wears a standing white ring instead |
+| J5 | Retype a point to 비메오 in `?edit=1` | that scene's dot turns orange straight away |
+| J6 | Watch a ring reach full size | the stroke stays hairline the whole way out, and fades before it stops |
+| K | Click another dot | that scene loads and its dot takes over the echo |
 | L | Collapse the minimap | plan folds away, chevron rotates, tour unaffected |
 | M | Add `?edit=1` | editor panel appears (and never appears without it) |
 | N | Rename in 이름 | title bar, scene menu, tab title and pin name all change |
@@ -995,7 +1101,14 @@ after your edits:
 | O2 | Drag the minimap title bar | panel moves, snaps to the nearest corner, does not collapse |
 | O3 | Move the 크기 slider | panel and pins resize live, readout follows |
 | P | 저장 on a `--edit` server | `config/tour.json` rewritten, `.bak` kept, diff limited to what you changed |
-| Q | Double-click `start-editor-windows.bat` | browser opens at `?edit=1`, 저장 writes the file |
+| Q | Double-click `start-editor-windows.bat` / `start-editor-macos.command` | browser opens at `?edit=1`, 저장 writes the file |
+| Q4 | `--autosave`: drag a point and let go | one `PUT` about 600 ms later, panel says 자동 저장됨, `config/tour.json` changed on disk |
+| Q5 | `--autosave`: drag across the panorama without stopping | still **one** save, not one per pointer move |
+| Q6 | `--autosave`: save twice with nothing changed | the second is a no-op — the server does not rewrite the file |
+| Q7 | `--autosave`: check `config/tour.json.bak` after several saves | it still holds the tour as it was when the server started |
+| Q8 | `--live`: save an edit to `css/style.css` | the styling changes with **no reload** — the panorama does not move |
+| Q9 | `--live`: save an edit to any `js/*.js` | the page reloads and comes back to the same scene |
+| Q10 | `--live`: stop the server and start it again | the open page reloads by itself once it reconnects |
 | Q2 | Open the editor on a server without `--edit` | yellow warning under the save buttons, before anything is edited |
 | Q3 | 저장 on any other server | refused with the reason, nothing lost — 내려받기 still works |
 | R | `?scene=nonsense` | default scene loads, warning in console, no crash |
@@ -1022,14 +1135,15 @@ hotspot pulse and all transitions are disabled under `prefers-reduced-motion`.
 - **The floor plan covers B1 only.** `scene01` and `scene07` are around the stairs at the
   level above, and sit on the stair block of the plan for want of anywhere better. A second
   plan per floor would be the honest fix; `settings.minimap` currently takes one image.
-- **22 pins on one small plan is dense.** In the multi hall the pins nearly touch. The
+- **22 dots on one small plan is dense.** In the multi hall the dots nearly touch. The
   panel has been widened to 560 px to compensate; if the tour grows again, consider
   grouping viewpoints rather than widening further.
-- **On a phone the pins are too small to aim at.** Capped at 52vw the plan is about 200 px
-  wide and each pin is 14×19 px — well under a 44 px touch target, and in the multi hall
-  they overlap. The ☰ list is the dependable way to move around on a phone; the plan is a
-  locator there, not a control. Giving the pins a bigger invisible hit area would help a
-  lone pin and make a cluster worse, so it is deliberately left alone.
+- **On a phone the dots are too small to aim at.** Capped at 52vw the plan is about 200 px
+  wide and each dot is about 7 px across. Its invisible hit area is roughly 39 px square —
+  close to, but still under, a 44 px touch target, and in the multi hall the targets
+  overlap. The ☰ list is the dependable way to move around on a phone; the plan is a
+  locator there, not a control. Growing the hit area further would help a lone dot and make
+  a cluster worse, so it is held at the size the old teardrop pins had.
 - **On a tablet the plan takes about 73% of the width** (560 px of 768). The 52vw cap only
   applies below 560 px. Lower `settings.minimap.width`, or add a cap for tablet widths, if
   that is too much.
@@ -1047,7 +1161,7 @@ hotspot pulse and all transitions are disabled under `prefers-reduced-motion`.
   mobile. Deliberately left out.
 - **iPhone Safari has no element fullscreen**, so the fullscreen button hides itself there.
   That is the correct behaviour, not a bug.
-- **`start-macos.command` needs `chmod +x` once** on each machine. macOS will not run a
+- **The `.command` launchers need `chmod +x` once** on each machine. macOS will not run a
   file it does not consider executable, and the permission bit is lost whenever the folder
   travels through a ZIP or a Windows filesystem. There is no way around this short of
   shipping a signed `.app` bundle.

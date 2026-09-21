@@ -15,9 +15,11 @@
  * "icon" path in tour.json overrides them (see buildIcon).
  */
 const ICONS = {
+  // A chevron rather than a full arrow: the stem carried no meaning the head
+  // did not already carry, and without it the mark reads cleaner at 48px.
   scene: '<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">' +
-         '<path d="M12 5.5 L12 18.5 M12 5.5 L6.8 10.7 M12 5.5 L17.2 10.7" ' +
-         'fill="none" stroke="currentColor" stroke-width="1.9" ' +
+         '<path d="M6 15 L12 9 L18 15" ' +
+         'fill="none" stroke="currentColor" stroke-width="2.2" ' +
          'stroke-linecap="round" stroke-linejoin="round"/></svg>',
 
   vimeo: '<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">' +

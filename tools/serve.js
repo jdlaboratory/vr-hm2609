@@ -10,10 +10,19 @@
  *   node tools/serve.js --lan        also reachable from a phone on the same Wi-Fi
  *   node tools/serve.js --port 9000
  *   node tools/serve.js --no-browser
+ *   node tools/serve.js --live       reload the page when a source file changes
+ *   node tools/serve.js --autosave   the editor writes every change, no button
  *
  * With --edit the server also accepts `PUT /api/tour-config`, which is how the
  * editor's save button writes config/tour.json. Without it the server is
  * read-only, so a stray request cannot rewrite the tour.
+ *
+ * --live watches index.html, css/ and js/ and pushes a message over
+ * `GET /api/live` (server-sent events) when one of them changes: a .css edit is
+ * swapped into the open page, anything else reloads it. --autosave tells the
+ * editor, through `GET /api/tour-config`, to save on every change instead of
+ * waiting for the button. Both are development conveniences and are off unless
+ * asked for.
  *
  * Stop it with Ctrl+C.
  */
@@ -40,6 +49,125 @@ const PANORAMA_PATH = '/api/panoramas';
 const PANORAMA_DIR = path.join(PROJECT_ROOT, 'assets', 'panoramas', 'equirect');
 // sceneNN_0.jpg / sceneNN_1.jpg — the level suffix is stripped to get the id.
 const PANORAMA_FILE_RE = /^(.+)_\d+\.(?:jpg|jpeg|png|webp)$/i;
+
+// One .bak per server run, taken before the first save: with --autosave the
+// file is rewritten every second or so, and a .bak from a second ago is not an
+// undo. This way it holds the tour as it was when you started the session.
+let backupWritten = false;
+
+// Live reload. The watcher polls mtimes rather than using fs.watch: it is a
+// handful of files, and polling behaves the same on every OS — fs.watch's
+// recursive mode and event coalescing differ between macOS, Linux and Windows.
+const LIVE_PATH = '/api/live';
+const LIVE_WATCH = ['index.html', 'css', 'js'];
+const LIVE_SUFFIXES = ['.html', '.css', '.js', '.mjs'];
+const LIVE_POLL_MS = 400;
+const LIVE_HEARTBEAT_MS = 20000;
+
+// Lets a reconnecting browser notice it is talking to a *restarted* server and
+// reload — which is what you want after editing serve.js itself.
+const SESSION_ID = `${process.pid}-${Date.now()}`;
+const liveClients = new Set();
+
+/**
+ * Every source file live reload cares about. Never config/tour.json — the
+ * editor writes that itself, and reloading on it would fight autosave.
+ */
+function watchedFiles(entry, found) {
+  let stats;
+  try {
+    stats = fs.statSync(entry);
+  } catch (err) {
+    return found;
+  }
+  if (stats.isFile()) {
+    if (LIVE_SUFFIXES.includes(path.extname(entry).toLowerCase())) found.push(entry);
+    return found;
+  }
+  let names = [];
+  try {
+    names = fs.readdirSync(entry);
+  } catch (err) {
+    return found;
+  }
+  for (const name of names) {
+    if (name.startsWith('.')) continue;
+    watchedFiles(path.join(entry, name), found);
+  }
+  return found;
+}
+
+/**
+ * path -> mtime for everything watched. Unreadable files are skipped, so a
+ * file being rewritten under us reads as a change rather than a crash.
+ */
+function snapshotSources() {
+  const seen = new Map();
+  for (const entry of LIVE_WATCH) {
+    for (const file of watchedFiles(path.join(PROJECT_ROOT, entry), [])) {
+      try {
+        seen.set(file, fs.statSync(file).mtimeMs);
+      } catch (err) {
+        /* gone between listing and stat; the next pass will see it */
+      }
+    }
+  }
+  return seen;
+}
+
+function sendEvent(res, name, value) {
+  res.write(`event: ${name}\ndata: ${JSON.stringify(value)}\n\n`);
+}
+
+/** Announces changes to the open pages. */
+function watchSources() {
+  let previous = snapshotSources();
+  setInterval(() => {
+    const current = snapshotSources();
+    const changed = [];
+    for (const [file, mtime] of current) {
+      if (previous.get(file) !== mtime) changed.push(file);
+    }
+    for (const file of previous.keys()) {
+      if (!current.has(file)) changed.push(file);
+    }
+    if (!changed.length) return;
+    previous = current;
+    changed.sort();
+    // Styles can be swapped into the running page; anything else means the
+    // loaded JavaScript is stale, and only a reload fixes that.
+    const kind = changed.every((file) => file.endsWith('.css')) ? 'css' : 'reload';
+    const label = kind === 'css' ? 'restyle' : 'reload ';
+    console.log(`  ${label} ${changed.map((f) => path.relative(PROJECT_ROOT, f)).join(', ')}`);
+    for (const client of liveClients) sendEvent(client, 'change', { kind });
+  }, LIVE_POLL_MS).unref();
+}
+
+/**
+ * Holds the connection open and writes an event on every change. The browser's
+ * EventSource reconnects by itself, so a dropped stream — or a restarted
+ * server — costs nothing.
+ */
+function streamLive(req, res) {
+  res.writeHead(200, {
+    'content-type': 'text/event-stream; charset=utf-8',
+    'cache-control': 'no-store',
+    connection: 'keep-alive'
+  });
+  sendEvent(res, 'hello', { session: SESSION_ID });
+  liveClients.add(res);
+
+  // A comment line: keeps proxies and sleeping laptops from quietly dropping
+  // an idle connection.
+  const heartbeat = setInterval(() => res.write(': keep-alive\n\n'), LIVE_HEARTBEAT_MS);
+  heartbeat.unref();
+  const drop = () => {
+    clearInterval(heartbeat);
+    liveClients.delete(res);
+  };
+  req.on('close', drop);
+  res.on('error', drop);
+}
 
 /** Scene ids that have a web panorama on disk, whether in the tour or not. */
 function availableSceneIds() {
@@ -74,15 +202,20 @@ const CONTENT_TYPES = {
 };
 
 function parseArguments(argv) {
-  const options = { port: 8000, edit: false, lan: false, browser: true };
+  const options = { port: 8000, edit: false, lan: false, browser: true, live: false, autosave: false };
   for (let i = 0; i < argv.length; i++) {
     const arg = argv[i];
     if (arg === '--edit') options.edit = true;
     else if (arg === '--lan') options.lan = true;
     else if (arg === '--no-browser') options.browser = false;
+    else if (arg === '--live') options.live = true;
+    else if (arg === '--autosave') options.autosave = true;
     else if (arg === '--port') options.port = parseInt(argv[++i], 10) || 8000;
     else if (arg.startsWith('--port=')) options.port = parseInt(arg.slice(7), 10) || 8000;
   }
+  // Autosave is meaningless on a server that refuses to save, so it turns
+  // editing on rather than failing with a flag combination to puzzle out.
+  if (options.autosave) options.edit = true;
   return options;
 }
 
@@ -140,17 +273,35 @@ function describeBadTour(parsed) {
   return null;
 }
 
-/** Keeps one undo copy, then replaces config/tour.json in a single step. */
+/**
+ * Keeps one undo copy, then replaces config/tour.json in a single step.
+ *
+ * Calls back with `written === false` when the file already holds exactly this
+ * content: with autosave most requests are no-ops, and rewriting the file
+ * anyway would churn the disk for nothing.
+ */
 function writeConfigFile(body, done) {
   const temporary = `${CONFIG_FILE}.tmp`;
+  const replace = () => {
+    fs.writeFile(temporary, body, (writeErr) => {
+      if (writeErr) return done(writeErr);
+      fs.rename(temporary, CONFIG_FILE, (renameErr) => done(renameErr, !renameErr));
+    });
+  };
+
   fs.mkdir(path.dirname(CONFIG_FILE), { recursive: true }, (mkdirErr) => {
     if (mkdirErr) return done(mkdirErr);
-    fs.copyFile(CONFIG_FILE, `${CONFIG_FILE}.bak`, (copyErr) => {
-      // A missing original is fine; anything else is not.
-      if (copyErr && copyErr.code !== 'ENOENT') return done(copyErr);
-      fs.writeFile(temporary, body, (writeErr) => {
-        if (writeErr) return done(writeErr);
-        fs.rename(temporary, CONFIG_FILE, done);
+    fs.readFile(CONFIG_FILE, (readErr, existing) => {
+      if (!readErr && existing.equals(body)) return done(null, false);
+      if (backupWritten || readErr) {
+        // No original to copy, or this run already took its snapshot.
+        if (readErr && readErr.code !== 'ENOENT') return done(readErr);
+        return replace();
+      }
+      fs.copyFile(CONFIG_FILE, `${CONFIG_FILE}.bak`, (copyErr) => {
+        if (copyErr && copyErr.code !== 'ENOENT') return done(copyErr);
+        backupWritten = true;
+        replace();
       });
     });
   });
@@ -204,16 +355,18 @@ function handleSave(req, res) {
       return;
     }
 
-    writeConfigFile(body, (err) => {
+    writeConfigFile(body, (err, written) => {
       if (err) {
         console.error(`  500 ${SAVE_PATH}: ${err.message}`);
         res.writeHead(500, { 'content-type': 'text/plain' })
           .end(`Could not write config/tour.json: ${err.message}`);
         return;
       }
-      console.log(`  saved config/tour.json  (${parsed.scenes.length} scenes)`);
+      // Autosave fires on a timer, so plenty of saves carry no change at all.
+      // Saying so every time would bury the ones that matter.
+      if (written) console.log(`  saved   config/tour.json  (${parsed.scenes.length} scenes)`);
       res.writeHead(200, { 'content-type': 'application/json' })
-        .end(JSON.stringify({ ok: true, scenes: parsed.scenes.length }));
+        .end(JSON.stringify({ ok: true, scenes: parsed.scenes.length, written: Boolean(written) }));
     });
   });
 }
@@ -237,13 +390,25 @@ const server = http.createServer((req, res) => {
   }
   // Two small read-only endpoints for the editor.
   if (pathname === SAVE_PATH) {          // will this server accept a save?
-    res.writeHead(200, { 'content-type': 'application/json' })
-      .end(JSON.stringify({ save: options.edit }));
+    res.writeHead(200, { 'content-type': 'application/json', 'cache-control': 'no-store' })
+      .end(JSON.stringify({ save: options.edit, autosave: options.edit && options.autosave }));
     return;
   }
   if (pathname === PANORAMA_PATH) {      // what panoramas could be added?
-    res.writeHead(200, { 'content-type': 'application/json' })
+    res.writeHead(200, { 'content-type': 'application/json', 'cache-control': 'no-store' })
       .end(JSON.stringify({ scenes: availableSceneIds() }));
+    return;
+  }
+  if (pathname === LIVE_PATH) {          // live reload: probe, then the stream
+    if (/[?&]probe=1(&|$)/.test(req.url)) {
+      res.writeHead(200, { 'content-type': 'application/json', 'cache-control': 'no-store' })
+        .end(JSON.stringify({ live: options.live }));
+    } else if (!options.live) {
+      res.writeHead(404, { 'content-type': 'text/plain' })
+        .end('Live reload is off. Restart the server with --live.');
+    } else {
+      streamLive(req, res);
+    }
     return;
   }
 
@@ -304,10 +469,19 @@ server.on('listening', () => {
   console.log('');
   if (options.edit) {
     console.log('  Editing is on: the editor can overwrite config/tour.json.');
+    if (options.autosave) {
+      console.log('  Autosave is on: every change is written, no button to press.');
+      console.log('  config/tour.json.bak keeps the tour as it was when this server started.');
+    }
     if (options.lan) {
       console.log('  With --lan, anyone on this network can too. Use it on a network you trust.');
     }
     console.log('');
+  }
+  if (options.live) {
+    console.log('  Live reload is on: editing index.html, css/ or js/ updates the page.');
+    console.log('');
+    watchSources();
   }
   console.log('  Press Ctrl+C to stop.');
   console.log('');
@@ -317,7 +491,12 @@ server.on('listening', () => {
 
 process.on('SIGINT', () => {
   console.log('\n  Stopping...');
+  // An open live-reload stream never ends on its own, so server.close() would
+  // wait for a page that is not going to go away. Hang them up first.
+  for (const client of liveClients) client.end();
+  liveClients.clear();
   server.close(() => process.exit(0));
+  setTimeout(() => process.exit(0), 500).unref();
 });
 
 server.listen(port, host);

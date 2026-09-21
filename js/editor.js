@@ -45,6 +45,15 @@ const SAVE_ENDPOINT = 'api/tour-config';
 const PANORAMA_ENDPOINT = 'api/panoramas';
 
 /**
+ * How long autosave waits for you to stop before writing. A drag fires a
+ * change on every pointer move, so saving each one would PUT the whole file
+ * dozens of times a second; only the last call of a burst is worth writing.
+ * Long enough to coalesce a drag, short enough that letting go of the mouse
+ * and looking at the panorama means it is already on disk.
+ */
+const AUTOSAVE_DELAY_MS = 600;
+
+/**
  * Builds the panorama block for a new scene by copying an existing one and
  * swapping the scene id through it, so a tour on multires tiles or on a
  * non-default path keeps working without the editor knowing what it uses.
@@ -171,6 +180,12 @@ export class Editor {
     this.selected = null;
     this.picking = false;
     this.dirty = false;
+    /** Set from the server's answer in _probeSaving. */
+    this.canSave = false;
+    this.autoSave = false;
+    this.autoSaveTimer = null;
+    /** The save in flight, if any — saves are chained, never overlapped. */
+    this.saving = null;
     this._armed = new WeakSet();
     this._suppressClick = false;
 
@@ -1115,6 +1130,9 @@ export class Editor {
     this._rebuildSelected();
     this._renderForm();
     this._renderHotspotList();
+    // A scene gains or loses its orange dot the moment a point becomes (or
+    // stops being) a video.
+    if (this.minimap) this.minimap.refreshVideoFlags();
   }
 
   /** Re-renders the selected hotspot's DOM after a change of type/label/target. */
@@ -1159,6 +1177,7 @@ export class Editor {
 
     this._select(hotspot);
     this._markDirty();
+    if (this.minimap) this.minimap.refreshVideoFlags();
     this._status('이동 포인트를 추가했습니다. 파노라마에서 끌어 위치를 잡으세요.', 'ok');
   }
 
@@ -1194,6 +1213,7 @@ export class Editor {
 
     this._select(null);
     this._markDirty();
+    if (this.minimap) this.minimap.refreshVideoFlags();
     this._status('이동 포인트를 삭제했습니다.', 'ok');
   }
 
@@ -1552,9 +1572,16 @@ export class Editor {
     }
 
     this.canSave = Boolean(info && info.save === true);
+    this.autoSave = this.canSave && Boolean(info && info.autosave === true);
     if (this.canSave) {
       this.saveNote.className = 'editor-note';
-      this.saveNote.textContent = '저장하면 config/tour.json 에 바로 반영됩니다.';
+      this.saveNote.textContent = this.autoSave
+        ? '자동 저장이 켜져 있습니다. 바꾸는 즉시 config/tour.json 에 기록됩니다.'
+        : '저장하면 config/tour.json 에 바로 반영됩니다.';
+      this.saveBtn.title = this.autoSave
+        ? '자동 저장을 기다리지 않고 지금 바로 저장합니다' : '';
+      // Anything edited while the probe was in flight still has to be written.
+      if (this.autoSave && this.dirty) this._scheduleAutoSave();
       return;
     }
     this.saveNote.className = 'editor-note is-warn';
@@ -1567,6 +1594,30 @@ export class Editor {
   _markDirty() {
     this.dirty = true;
     this.panel.classList.add('is-dirty');
+    if (this.autoSave) this._scheduleAutoSave();
+  }
+
+  /** Restarts the autosave countdown. See AUTOSAVE_DELAY_MS. */
+  _scheduleAutoSave() {
+    window.clearTimeout(this.autoSaveTimer);
+    this.autoSaveTimer = window.setTimeout(() => {
+      this.autoSaveTimer = null;
+      this._save({ auto: true });
+    }, AUTOSAVE_DELAY_MS);
+  }
+
+  /**
+   * Writes anything still pending, now, and resolves once the file is on
+   * disk. Live reload awaits this before replacing the page, so a change made
+   * a moment before a code edit does not vanish with the old document.
+   */
+  async flushPendingSave() {
+    if (this.autoSaveTimer !== null) {
+      window.clearTimeout(this.autoSaveTimer);
+      this.autoSaveTimer = null;
+      if (this.dirty && this.canSave) this._save({ auto: true });
+    }
+    if (this.saving) await this.saving;
   }
 
   _status(message, kind) {
@@ -1594,17 +1645,46 @@ export class Editor {
     return problems;
   }
 
-  async _save() {
+  /**
+   * Queues a save. Saves are chained rather than run in parallel: two PUTs in
+   * flight at once would race, and the file the server ends up with would be
+   * whichever finished last, not whichever was newest.
+   */
+  _save(options = {}) {
+    const auto = Boolean(options.auto);
+    const next = Promise.resolve(this.saving)
+      .catch(() => {})
+      .then(() => this._runSave(auto));
+    this.saving = next.finally(() => {
+      if (this.saving === next) this.saving = null;
+    });
+    return this.saving;
+  }
+
+  async _runSave(auto) {
     const problems = this._validate();
     if (problems.length) {
-      this._status(`저장하지 않았습니다 — ${problems[0]}`, 'error');
-      console.warn('[tour] Editor found unsaveable hotspots:', problems);
+      // Autosave keeps trying as you edit, so this is a hold, not a failure —
+      // fix the hotspot and the next change writes the file.
+      this._status(auto ? `자동 저장 보류 — ${problems[0]}` : `저장하지 않았습니다 — ${problems[0]}`,
+                   auto ? 'warn' : 'error');
+      // Only once per distinct problem: autosave would otherwise fill the
+      // console with the same line every time you nudge anything.
+      if (this._lastProblem !== problems[0]) {
+        this._lastProblem = problems[0];
+        console.warn('[tour] Editor found unsaveable hotspots:', problems);
+      }
       return;
     }
+    this._lastProblem = null;
 
     const body = formatTourJson(this.config.raw);
-    this.saveBtn.disabled = true;
-    this._status('저장 중…');
+    // Autosave leaves the button alone: disabling it twice a second turns it
+    // into a flicker, and there is nothing for the user to wait for.
+    if (!auto) {
+      this.saveBtn.disabled = true;
+      this._status('저장 중…');
+    }
 
     let response;
     try {
@@ -1614,7 +1694,7 @@ export class Editor {
         body
       });
     } catch (err) {
-      this.saveBtn.disabled = false;
+      if (!auto) this.saveBtn.disabled = false;
       // Either nothing is listening, or the server closed the connection on us.
       // The usual cause by far is a server started without --edit.
       this._status('서버에 저장하지 못했습니다. --edit 로 실행 중인지 확인하거나 ' +
@@ -1623,12 +1703,12 @@ export class Editor {
       return;
     }
 
-    this.saveBtn.disabled = false;
+    if (!auto) this.saveBtn.disabled = false;
     if (response.ok) {
       this.dirty = false;
       this.panel.classList.remove('is-dirty');
       const at = new Date().toLocaleTimeString();
-      this._status(`config/tour.json 에 저장했습니다 (${at}).`, 'ok');
+      this._status(auto ? `자동 저장됨 (${at}).` : `config/tour.json 에 저장했습니다 (${at}).`, 'ok');
       return;
     }
 

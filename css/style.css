@@ -392,24 +392,21 @@ body.is-fullscreen .btn .icon-exit-fs { display: block; }
 .hotspot:active .hotspot-icon { transform: scale(0.94); }
 
 /* Type accents: subtle, so hotspots read as one family. */
-.hotspot-scene .hotspot-icon svg { transform: translateY(-1px); }
+/* The chevron is drawn centred in its viewBox, so it needs no optical nudge —
+   but it covers less of the box than the arrow it replaced, hence the larger
+   canvas. */
+.hotspot-scene .hotspot-icon svg { width: 30px; height: 30px; }
 
-/* Video points wear the play-button red, so a film reads as a film at a glance
-   and never as one more way to walk. The hover rule has to repeat the colour:
-   the shared `.hotspot:hover .hotspot-icon` scrim outranks a plain type rule. */
-.hotspot-video .hotspot-icon {
-  background: #FF0033;
-  border-color: #fff;
-  color: #fff;
-}
-.hotspot-video:hover .hotspot-icon,
-.hotspot-video.is-hovered .hotspot-icon { background: #ff2149; }
-/* 30% larger than the 22px glyph the other types share, nudged right so the
-   triangle looks centred rather than measured. */
+/* Video points share the scene points' dark scrim — the triangle alone says
+   "film", so the circle stays part of one family. Colour therefore comes from
+   the shared `.hotspot-icon` rules, including hover; only the glyph differs. */
+/* Half again the 29px it used to be, so the triangle carries the meaning now
+   that the background no longer does. Nudged right so it looks centred rather
+   than measured; the nudge grows with the glyph. */
 .hotspot-video .hotspot-icon svg {
-  width: 29px;
-  height: 29px;
-  transform: translateX(1px);
+  width: 44px;
+  height: 44px;
+  transform: translateX(1.5px);
 }
 
 .hotspot-info .hotspot-icon { border-style: solid; }
@@ -449,10 +446,16 @@ body.is-fullscreen .btn .icon-exit-fs { display: block; }
      its pins are sized from it, so the two never disagree. */
   --minimap-effective-width: min(var(--minimap-width), calc(100vw - 32px));
 
-  /* Pins track the panel size, so the plan stays readable under two dozen of
-     them at every width the editor allows. Clamped so they never become
-     un-tappable on a small map or cartoonish on a large one. */
-  --minimap-pin-width: clamp(11px, calc(var(--minimap-effective-width) * 0.05), 22px);
+  /* Dots track the panel size, so the plan stays readable under two dozen of
+     them at every width the editor allows. Clamped so they never disappear on
+     a small map or turn into buttons on a large one. The tap target is the
+     ::before below and does not shrink with them. */
+  --minimap-pin-width: clamp(7px, calc(var(--minimap-effective-width) * 0.036), 12px);
+
+  /* Dot colours. The resting dot is the same near-black the hotspots wear, so
+     the two families read as one; orange marks a scene with a video in it. */
+  --minimap-pin-fill: rgba(18, 18, 22, 0.78);
+  --minimap-pin-video: #f07a22;
 
   position: fixed;
   /* Default corner. The [data-corner] rules below move it, clearing whichever
@@ -542,41 +545,115 @@ body.is-fullscreen .btn .icon-exit-fs { display: block; }
 
 .minimap-pins { position: absolute; inset: 0; }
 
+/* The button is the positioning box and the hit area only. The circle is the
+   span inside it, so the dot can breathe on its own while the echo rings —
+   drawn on the button — keep their own opacity. */
 .minimap-pin {
   position: absolute;
-  /* Deliberately small: a two dozen scene tour puts a lot of pins on one plan,
-     and the plan has to stay readable underneath them. 1.333 is the pin
-     artwork's own 24:32 aspect ratio. */
+  /* Deliberately small: a two dozen scene tour puts a lot of dots on one plan,
+     and the plan has to stay readable underneath them. */
   width: var(--minimap-pin-width);
-  height: calc(var(--minimap-pin-width) * 1.333);
+  height: var(--minimap-pin-width);
   padding: 0;
   margin: 0;
   background: transparent;
   border: 0;
+  /* The dot and its echo are drawn in currentColor, so .has-video recolours
+     both from one declaration. */
+  color: var(--minimap-pin-fill);
   cursor: pointer;
-  /* left/top are set from the scene's map coordinate; the pin's tip, not its
-     box, is what lands on that point. */
-  transform: translate(-50%, -100%);
+  /* left/top are set from the scene's map coordinate, and the dot is centred
+     on it — unlike the old teardrop, which hung above it by its tip. */
+  transform: translate(-50%, -50%);
   transition: transform var(--speed) var(--ease);
 }
-/* The pin is far smaller than a fingertip. Grow the hit area, not the art. */
+/* Scenes holding a Vimeo point, so a plan of two dozen rooms says where the
+   films are before you walk into them. */
+.minimap-pin.has-video { color: var(--minimap-pin-video); }
+
+/* The dot is far smaller than a fingertip. Grow the hit area, not the mark.
+   -16px keeps the target the size the old teardrop had (roughly 40x38), so
+   shrinking the artwork did not quietly make the plan harder to tap. */
 .minimap-pin::before {
   content: "";
   position: absolute;
-  inset: -11px -13px -8px;
+  inset: -16px;
 }
-.minimap-pin img {
-  display: block;
+
+.minimap-pin-dot {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  background: currentColor;
+  /* A hairline ring, not a drawn border: it has to separate the dot from a
+     dark floor plan without thickening into a doughnut at 7px. */
+  border: 1.5px solid rgba(255, 255, 255, 0.92);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.4);
+}
+
+.minimap-pin:hover { z-index: 3; transform: translate(-50%, -50%) scale(1.45); }
+.minimap-pin:focus-visible { outline: 2px solid #1f6feb; outline-offset: 2px; }
+
+/* --- the scene on screen ---------------------------------------------------
+   Echo rings spreading out of the dot, not a colour: the dot may already be
+   carrying the orange that means "there is a video here", and one dot cannot
+   say two things in one colour. Two rings half a cycle apart, so the plan
+   always has one on the way out rather than a gap between beats. */
+.minimap-pin.is-active { z-index: 2; }
+
+.minimap-pin.is-active::after,
+.minimap-pin.is-active .minimap-pin-dot::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  top: 50%;
   width: 100%;
   height: 100%;
-  filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.35));
+  border-radius: 50%;
+  border: 1.5px solid currentColor;
+  /* Centred on the dot whatever size the animation has grown it to:
+     translate is a share of the ring's own box, so it re-centres itself. */
+  transform: translate(-50%, -50%);
+  /* Invisible unless the animation is running — which is what makes the
+     reduced-motion rule below a clean switch-off rather than a stuck ring. */
+  opacity: 0;
+  /* The rings reach well past the hit area; they must never eat a click meant
+     for the dot underneath. */
+  pointer-events: none;
+  /* Linear: an eased echo covers most of its travel in the first third and
+     then hangs, which reads as a stutter rather than a ripple. */
+  animation: minimap-pin-echo 2.4s linear infinite;
 }
-.minimap-pin:hover { z-index: 3; transform: translate(-50%, -100%) scale(1.25); }
-.minimap-pin:focus-visible { outline: 2px solid #1f6feb; outline-offset: 2px; border-radius: 3px; }
+.minimap-pin.is-active .minimap-pin-dot::after { animation-delay: 1.2s; }
 
-.minimap-pin.is-active {
-  z-index: 2;
-  transform: translate(-50%, -100%) scale(1.3);
+/* Width and height rather than transform: scale() would blow the 1.5px stroke
+   up to 5px by the time the ring is at full size, and a thickening, blurring
+   ring does not read as one ring travelling outward. */
+@keyframes minimap-pin-echo {
+  0%   { width: 100%; height: 100%; opacity: 0.75; }
+  70%  { opacity: 0.12; }
+  100% { width: 360%; height: 360%; opacity: 0; }
+}
+
+/* A dot that also breathes ties the rings to their source. Kept shallow —
+   the rings are the signal, this is only the thing they come from. */
+.minimap-pin.is-active .minimap-pin-dot {
+  animation: minimap-pin-pulse 2.4s var(--ease) infinite;
+}
+@keyframes minimap-pin-pulse {
+  0%, 100% { opacity: 1; }
+  50%      { opacity: 0.62; }
+}
+
+/* Under the cursor, or mid-drag, all this reads as a rendering fault rather
+   than a highlight. The rings rest at opacity 0, so stopping them hides them. */
+.minimap-pin.is-active:hover::after,
+.minimap-pin.is-active:hover .minimap-pin-dot,
+.minimap-pin.is-active:hover .minimap-pin-dot::after,
+.minimap-pin.is-active.is-dragging::after,
+.minimap-pin.is-active.is-dragging .minimap-pin-dot,
+.minimap-pin.is-active.is-dragging .minimap-pin-dot::after {
+  animation: none;
 }
 
 /* Editor mode: drag a pin, click bare floor plan to place the open scene, or
@@ -1054,4 +1131,10 @@ body.editor-active .hotspot.is-dragging { cursor: grabbing; }
     transition-duration: 0.01ms !important;
   }
   .hotspot-scene .hotspot-icon::after { display: none; }
+  /* The echo is the only thing marking the open scene, and the rule above has
+     just stopped it. Say it with a standing ring instead. */
+  .minimap-pin.is-active .minimap-pin-dot {
+    opacity: 1;
+    box-shadow: 0 0 0 2.5px rgba(255, 255, 255, 0.95), 0 1px 3px rgba(0, 0, 0, 0.4);
+  }
 }

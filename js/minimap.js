@@ -1,8 +1,14 @@
 /**
  * minimap.js — the floor plan in the bottom-right corner.
  *
- * One pin per scene that has a "map" block in tour.json; the scene currently
- * on screen swaps to the highlight pin. Clicking a pin jumps to that scene.
+ * One dot per scene that has a "map" block in tour.json. Clicking a dot jumps
+ * to that scene. Two states ride on top of the plain dot, and css/style.css
+ * draws all three:
+ *
+ *   .is-active   the scene on screen — echo rings spreading out of the dot,
+ *                rather than a colour, so the state stays legible whatever
+ *                the dot underneath is coloured
+ *   .has-video   the scene holds at least one Vimeo point, marked in orange
  *
  * The module also carries the editing affordances the editor turns on: with
  * `setEditable(true)`, pins can be dragged, a click on bare floor plan places
@@ -15,6 +21,12 @@
 
 /** Below this much pointer travel a drag is treated as a click. */
 const DRAG_SLOP_PX = 4;
+
+/** Whether a scene holds anything worth flagging on the plan. */
+function hasVideo(scene) {
+  return Array.isArray(scene.hotspots) &&
+         scene.hotspots.some((hotspot) => hotspot.type === 'vimeo');
+}
 
 function clamp(value, min, max) {
   return Math.min(max, Math.max(min, value));
@@ -139,18 +151,17 @@ export class Minimap {
     this.scenes.forEach((scene) => {
       if (!scene.map) return;
 
+      // No artwork to load, and the three states are a class each rather than
+      // a file each. The button is only the positioning box and the hit area;
+      // the circle is the span inside it, so the active scene's echo rings can
+      // spread out of the button without inheriting the dot's own animation.
       const pin = document.createElement('button');
       pin.type = 'button';
       pin.className = 'minimap-pin';
+      pin.classList.toggle('has-video', hasVideo(scene));
       pin.dataset.sceneId = scene.id;
       pin.setAttribute('aria-label', scene.name);
-
-      const img = document.createElement('img');
-      // setAttribute, never innerHTML: the path comes from config.
-      img.setAttribute('src', this.settings.pin);
-      img.setAttribute('alt', '');
-      img.setAttribute('aria-hidden', 'true');
-      pin.appendChild(img);
+      pin.appendChild(document.createElement('span')).className = 'minimap-pin-dot';
 
       // No visible caption: two dozen of them over a floor plan is noise, and
       // the scene name is already the button's accessible name above.
@@ -202,14 +213,24 @@ export class Minimap {
     this.activeId = sceneId;
     this._pins.forEach((pin, id) => {
       const active = id === sceneId;
+      // The stylesheet turns this into the echo rings. Deliberately not a
+      // colour: the dot may already be carrying the orange that means "there
+      // is a video here", and one dot cannot say two things in one colour.
       pin.classList.toggle('is-active', active);
-      const img = pin.querySelector('img');
-      // Two files rather than a CSS filter, so the highlight colour is a
-      // designer's choice in assets/icons and not baked into the stylesheet.
-      const wanted = active ? this.settings.pinActive : this.settings.pin;
-      if (img.getAttribute('src') !== wanted) img.setAttribute('src', wanted);
       if (active) pin.setAttribute('aria-current', 'true');
       else pin.removeAttribute('aria-current');
+    });
+  }
+
+  /**
+   * Re-reads which scenes hold a Vimeo point. The editor calls this after a
+   * hotspot is added, deleted or retyped — the dots are otherwise untouched,
+   * so this is a class toggle and not a rebuild.
+   */
+  refreshVideoFlags() {
+    this._pins.forEach((pin, id) => {
+      const scene = this.scenes.find((item) => item.id === id);
+      if (scene) pin.classList.toggle('has-video', hasVideo(scene));
     });
   }
 

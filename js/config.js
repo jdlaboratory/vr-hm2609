@@ -41,8 +41,6 @@ const DEFAULT_MINIMAP = {
   enabled: true,
   image: null,                            // required; without it the map is off
   title: '',
-  pin: 'assets/icons/pin.svg',
-  pinActive: 'assets/icons/pin-active.svg',
   width: 260,                             // px, at desktop sizes
   // Anchored to a corner rather than given absolute coordinates, so the panel
   // keeps its margin when the window is resized.
@@ -138,14 +136,13 @@ function normalizeMinimap(raw) {
     console.warn('[tour] settings.minimap has no "image" path — minimap disabled.');
     return null;
   }
-  const text = (value, fallback) =>
-    (typeof value === 'string' && value ? value : fallback);
+  // No "pin"/"pinActive": the dots are drawn by css/style.css, which is also
+  // where their three states live. A leftover pair in an older tour.json is
+  // simply ignored.
   return {
     enabled: true,
     image: raw.image,
     title: typeof raw.title === 'string' ? raw.title : DEFAULT_MINIMAP.title,
-    pin: text(raw.pin, DEFAULT_MINIMAP.pin),
-    pinActive: text(raw.pinActive, DEFAULT_MINIMAP.pinActive),
     // Clamped: a minimap wider than a phone would cover the panorama.
     width: Math.round(clamp(numberOr(raw.width, DEFAULT_MINIMAP.width),
                             MINIMAP_WIDTH_RANGE.min, MINIMAP_WIDTH_RANGE.max)),

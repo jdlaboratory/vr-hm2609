@@ -27,8 +27,6 @@
       "enabled": true,
       "image": "assets/source-map/hm_map.png",
       "title": "",
-      "pin": "assets/icons/pin.svg",
-      "pinActive": "assets/icons/pin-active.svg",
       "width": 560,
       "position": { "corner": "bottom-right", "x": 25, "y": 30 },
       "startCollapsed": false
@@ -45,7 +43,7 @@
         "levels": [{ "width": 1024 }, { "width": 4096 }]
       },
       "initialView": { "yaw": 0.01, "pitch": 0.156, "fov": 1.158 },
-      "map": { "x": 0.2933, "y": 0.884 },
+      "map": { "x": 0.2973, "y": 0.8536 },
       "hotspots": [
         {
           "id": "scene01-to-scene06",
@@ -59,8 +57,8 @@
           "id": "scene01-to-scene07",
           "type": "scene",
           "target": "scene07",
-          "yaw": 0.494,
-          "pitch": 0.487,
+          "yaw": 0.496,
+          "pitch": 0.438,
           "label": "전시 입구"
         }
       ]
@@ -819,7 +817,7 @@
         "levels": [{ "width": 1024 }, { "width": 4096 }]
       },
       "initialView": { "yaw": -1.004, "pitch": 0.068, "fov": 1.158 },
-      "map": { "x": 0.8301, "y": 0.9084 },
+      "map": { "x": 0.8085, "y": 0.8933 },
       "hotspots": [
         {
           "id": "scene04-to-scene03",

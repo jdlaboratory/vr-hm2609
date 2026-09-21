@@ -57,6 +57,19 @@ function readSceneFromUrl() {
   return hash || null;
 }
 
+/**
+ * True when this page came from a development server on this machine or the
+ * local network. Live reload is only ever probed here — a deployed tour must
+ * not spend a request asking a static host for an endpoint it cannot have.
+ */
+function isLocalAddress() {
+  const host = window.location.hostname;
+  return host === 'localhost' || host === '127.0.0.1' || host === '::1' ||
+         host === '[::1]' || host === '' || host.endsWith('.local') ||
+         /^192\.168\./.test(host) || /^10\./.test(host) ||
+         /^172\.(1[6-9]|2\d|3[01])\./.test(host);
+}
+
 /** Reflects the current scene in the URL without adding history noise. */
 function writeSceneToUrl(sceneId) {
   const url = new URL(window.location.href);
@@ -194,9 +207,10 @@ async function start() {
   });
 
   // ---------------------------------------------------------------- editor
+  let editor = null;
   if (isEditorRequested()) {
     try {
-      new Editor(tour, config, elements.pano, {
+      editor = new Editor(tour, config, elements.pano, {
         hotspots,
         minimap,
         ui,
@@ -205,6 +219,18 @@ async function start() {
     } catch (err) {
       console.error('[tour] Editor failed to start:', err);
     }
+  }
+
+  // ----------------------------------------------------------- live reload
+  // Imported dynamically so the module is only ever fetched on a dev server.
+  // It checks whether this one was started with --live and does nothing if not.
+  if (isLocalAddress()) {
+    import('./livereload.js')
+      .then((module) => module.installLiveReload({
+        // Never reload out from under a change the editor has not written yet.
+        beforeReload: () => (editor ? editor.flushPendingSave() : null)
+      }))
+      .catch((err) => console.warn('[tour] Live reload is unavailable:', err));
   }
 
   // --------------------------------------------------------- initial scene
