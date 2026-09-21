@@ -62,16 +62,6 @@
           "yaw": 0.494,
           "pitch": 0.487,
           "label": "전시 입구"
-        },
-        {
-          "id": "scene01-hs1",
-          "type": "vimeo",
-          "target": "scene02",
-          "yaw": 0.067,
-          "pitch": 0.203,
-          "label": "Asylum of the Birds",
-          "title": "Asylum of the Birds",
-          "videoId": "1223674732"
         }
       ]
     },
@@ -127,6 +117,16 @@
           "yaw": -0.859,
           "pitch": 0.07,
           "label": "멀티홀 외벽1"
+        },
+        {
+          "id": "scene07-hs3",
+          "type": "vimeo",
+          "target": "scene24",
+          "yaw": 2.232,
+          "pitch": 0.071,
+          "label": "Asylum of the Birds",
+          "videoId": "1223674732",
+          "title": "Asylum of the Birds"
         }
       ]
     },
@@ -215,16 +215,6 @@
           "label": "중앙 로비"
         },
         {
-          "id": "scene08-hs4",
-          "type": "vimeo",
-          "target": "scene01",
-          "yaw": -0.013,
-          "pitch": 0.049,
-          "label": "Theatre of Apparitions",
-          "videoId": "1223679817",
-          "title": "Theatre of Apparitions"
-        },
-        {
           "id": "scene08-hs5",
           "type": "vimeo",
           "target": "scene01",
@@ -272,6 +262,16 @@
           "yaw": 2.257,
           "pitch": 0.131,
           "label": "멀티홀 중앙"
+        },
+        {
+          "id": "scene11-hs4",
+          "type": "vimeo",
+          "target": "scene01",
+          "yaw": -0.083,
+          "pitch": 0.166,
+          "label": "Theatre of Apparitions",
+          "videoId": "1223679817",
+          "title": "Theatre of Apparitions"
         }
       ]
     },
@@ -641,16 +641,6 @@
           "yaw": 1.553,
           "pitch": 0.101,
           "label": "미디어 갤러리 2"
-        },
-        {
-          "id": "scene20-hs1",
-          "type": "vimeo",
-          "target": "scene01",
-          "yaw": -0.02,
-          "pitch": 0.063,
-          "label": "Ballenesque",
-          "videoId": "1223677057",
-          "title": "Ballenesque"
         }
       ]
     },
@@ -689,9 +679,11 @@
           "target": "scene01",
           "yaw": 0.013,
           "pitch": 0.024,
-          "label": "Outland",
-          "videoId": "1223677160",
-          "title": "Outland"
+          "label": "Ballenesque & Outland",
+          "videoId": "1223677057",
+          "title": "Ballenesque",
+          "title2": "Outland",
+          "videoId2": "1223677160"
         }
       ]
     },
@@ -723,6 +715,16 @@
           "yaw": -3.038,
           "pitch": 0.102,
           "label": "정원 입구"
+        },
+        {
+          "id": "scene22-hs1",
+          "type": "vimeo",
+          "target": "scene01",
+          "yaw": -0.048,
+          "pitch": 0.08,
+          "label": "Theatre of Apparitions",
+          "videoId": "1223679817",
+          "title": "Theatre of Apparitions"
         }
       ]
     },
@@ -793,6 +795,16 @@
           "yaw": 0.05,
           "pitch": 0.16,
           "label": "수유실"
+        },
+        {
+          "id": "scene03-hs1",
+          "type": "vimeo",
+          "target": "scene01",
+          "yaw": 0.224,
+          "pitch": 0.128,
+          "label": "Theatre of Apparitions",
+          "title": "Theatre of Apparitions",
+          "videoId": "1223679817"
         }
       ]
     },
@@ -847,6 +859,16 @@
           "yaw": 0.525,
           "pitch": 0.089,
           "label": "정원 입구"
+        },
+        {
+          "id": "scene02-hs1",
+          "type": "vimeo",
+          "target": "scene01",
+          "yaw": -0.027,
+          "pitch": 0.138,
+          "label": "Theatre of Apparitions",
+          "videoId": "1223679817",
+          "title": "Theatre of Apparitions"
         }
       ]
     }

@@ -148,6 +148,7 @@ async function start() {
         openerElement: opener
       });
       elements.modal.dialog.classList.add('is-video');
+      elements.modal.dialog.classList.toggle('is-dual', Boolean(hotspot.videoId2));
     },
 
     onOpenInfo: (hotspot, opener) => {
@@ -156,7 +157,7 @@ async function start() {
         content: buildInfoContent(hotspot),
         openerElement: opener
       });
-      elements.modal.dialog.classList.remove('is-video');
+      elements.modal.dialog.classList.remove('is-video', 'is-dual');
     }
   });
 

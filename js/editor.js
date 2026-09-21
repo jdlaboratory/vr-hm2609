@@ -824,6 +824,23 @@ export class Editor {
       return input;
     }, 'row-info row-vimeo');
 
+    // Optional second video: shown under the first, in the same dialog.
+    this.videoInput2 = this._field(this.form, '두 번째 영상 ID 또는 주소 (선택)', () => {
+      const input = document.createElement('input');
+      input.type = 'text';
+      input.placeholder = '비워 두면 영상 하나만 재생됩니다';
+      input.addEventListener('input', () => this._writeVideo(input.value.trim(), '2'));
+      return input;
+    }, 'row-vimeo');
+
+    this.titleInput2 = this._field(this.form, '두 번째 영상 제목', () => {
+      const input = document.createElement('input');
+      input.type = 'text';
+      input.placeholder = '두 번째 영상 위에 표시됩니다';
+      input.addEventListener('input', () => this._writeField('title2', input.value));
+      return input;
+    }, 'row-vimeo');
+
     this.contentInput = this._field(this.form, '내용', () => {
       const area = document.createElement('textarea');
       area.rows = 3;
@@ -1004,6 +1021,8 @@ export class Editor {
     show(this.targetSelect, hotspot.type === 'scene');
     show(this.videoInput, hotspot.type === 'vimeo');
     show(this.titleInput, hotspot.type !== 'scene');
+    show(this.videoInput2, hotspot.type === 'vimeo');
+    show(this.titleInput2, hotspot.type === 'vimeo');
     show(this.contentInput, hotspot.type === 'info');
 
     if (hotspot.type === 'scene') this.targetSelect.value = hotspot.target;
@@ -1011,6 +1030,8 @@ export class Editor {
     // Show the address as it was typed, not just the id parsed out of it.
     this.videoInput.value = (hotspot._raw && hotspot._raw.videoId) || hotspot.videoId || '';
     this.titleInput.value = hotspot.title || '';
+    this.videoInput2.value = (hotspot._raw && hotspot._raw.videoId2) || hotspot.videoId2 || '';
+    this.titleInput2.value = hotspot.title2 || '';
     this.contentInput.value = hotspot.content || '';
 
     this._renderPosition();
@@ -1041,16 +1062,18 @@ export class Editor {
    * is easier to read back; the live model keeps only the id and privacy hash
    * parsed out of it, so nothing unchecked can reach the iframe src. A value
    * that parses to nothing leaves the id empty, and _validate refuses to save.
+   *
+   * `suffix` is '' for the first video and '2' for the optional second one.
    */
-  _writeVideo(value) {
+  _writeVideo(value, suffix = '') {
     const hotspot = this.selected;
     if (!hotspot) return;
     const video = extractVimeoVideo(value);
-    hotspot.videoId = video ? video.id : '';
-    hotspot.videoHash = video ? video.hash : null;
+    hotspot[`videoId${suffix}`] = video ? video.id : '';
+    hotspot[`videoHash${suffix}`] = video ? video.hash : null;
     if (hotspot._raw) {
-      if (value) hotspot._raw.videoId = value;
-      else delete hotspot._raw.videoId;
+      if (value) hotspot._raw[`videoId${suffix}`] = value;
+      else delete hotspot._raw[`videoId${suffix}`];
     }
     this._status(!value || video ? '' : '비메오 주소를 알아볼 수 없습니다.',
                  !value || video ? null : 'warn');
@@ -1561,6 +1584,10 @@ export class Editor {
         }
         if (hotspot.type === 'vimeo' && !hotspot.videoId) {
           problems.push(`${scene.id}/${hotspot.id}: 비메오 영상 주소가 비었거나 잘못됨`);
+        }
+        if (hotspot.type === 'vimeo' && hotspot._raw && hotspot._raw.videoId2 &&
+            !hotspot.videoId2) {
+          problems.push(`${scene.id}/${hotspot.id}: 두 번째 비메오 영상 주소가 잘못됨`);
         }
       });
     });

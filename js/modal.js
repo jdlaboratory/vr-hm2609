@@ -118,26 +118,50 @@ export class Modal {
  * to the iframe untouched. `dnt=1` asks the player not to track the visitor.
  */
 export function buildVimeoEmbed(hotspot) {
+  if (!hotspot.videoId2) return buildVimeoFrame(hotspot, true);
+
+  // Two videos stack vertically. Only the first autoplays, so two soundtracks
+  // never start over each other; the second carries its own title above it.
+  const stack = document.createElement('div');
+  stack.className = 'video-stack';
+  stack.appendChild(buildVimeoFrame(hotspot, true));
+
+  const caption = document.createElement('h3');
+  caption.className = 'video-caption';
+  caption.textContent = hotspot.title2 || '';
+  caption.hidden = !hotspot.title2;
+  stack.appendChild(caption);
+
+  stack.appendChild(buildVimeoFrame({
+    videoId: hotspot.videoId2,
+    videoHash: hotspot.videoHash2,
+    title: hotspot.title2 || hotspot.title
+  }, false));
+  return stack;
+}
+
+/** One 16:9 player for a single {videoId, videoHash, title, start}. */
+function buildVimeoFrame(video, autoplay) {
   const wrapper = document.createElement('div');
   wrapper.className = 'video-frame';
 
   const iframe = document.createElement('iframe');
   const params = new URLSearchParams({
-    autoplay: '1',
+    autoplay: autoplay ? '1' : '0',
     byline: '0',
     portrait: '0',
     title: '0',
     dnt: '1'
   });
   // An unlisted video only plays when its privacy hash travels with the id.
-  if (hotspot.videoHash) params.set('h', hotspot.videoHash);
+  if (video.videoHash) params.set('h', video.videoHash);
 
   // Vimeo takes the start offset as a fragment, not as a query parameter.
-  const start = hotspot.start ? `#t=${hotspot.start}s` : '';
+  const start = video.start ? `#t=${video.start}s` : '';
 
   iframe.setAttribute('src',
-    `https://player.vimeo.com/video/${hotspot.videoId}?${params.toString()}${start}`);
-  iframe.setAttribute('title', hotspot.title || 'Video');
+    `https://player.vimeo.com/video/${video.videoId}?${params.toString()}${start}`);
+  iframe.setAttribute('title', video.title || 'Video');
   iframe.setAttribute('frameborder', '0');
   iframe.setAttribute('allow', 'autoplay; fullscreen; picture-in-picture; encrypted-media');
   iframe.setAttribute('allowfullscreen', '');

@@ -334,6 +334,10 @@ console warning tells you which one — the tour still works.
 - **Unlisted videos need their privacy hash.** It is the second part of the share link
   (`vimeo.com/76979871/abc123def4`) or the `?h=` parameter. Paste the whole address and the
   hash is kept for you; paste only the id and an unlisted video will refuse to play.
+- **Up to two videos per hotspot.** Add `"videoId2"` (same formats as `videoId`) and an
+  optional `"title2"`, and the dialog stacks the two players vertically — `title` above the
+  first, `title2` above the second. Only the first autoplays. An invalid `videoId2` drops
+  just the second video; the first still plays.
 - Add `"start": 30` to begin 30 seconds in.
 - The iframe is created only when the hotspot is clicked and **destroyed when the modal
   closes**, so no video keeps playing in the background and the page never loads ten

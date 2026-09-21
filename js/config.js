@@ -251,6 +251,20 @@ function normalizeHotspot(raw, scene, index) {
     hotspot.videoHash = video.hash;
     hotspot.title = typeof raw.title === 'string' ? raw.title : (hotspot.label || 'Video');
     if (isFiniteNumber(raw.start)) hotspot.start = Math.max(0, Math.floor(raw.start));
+
+    // Optional second video, shown below the first in the same dialog. A bad
+    // one only drops itself — the first video still plays.
+    if (raw.videoId2 != null && raw.videoId2 !== '') {
+      const second = extractVimeoVideo(raw.videoId2);
+      if (second) {
+        hotspot.videoId2 = second.id;
+        hotspot.videoHash2 = second.hash;
+      } else {
+        console.warn(`[tour] ${where}: invalid second Vimeo video id ` +
+                     `(${JSON.stringify(raw.videoId2)}) — second video skipped.`);
+      }
+    }
+    hotspot.title2 = typeof raw.title2 === 'string' ? raw.title2 : '';
   }
 
   if (raw.type === 'info') {

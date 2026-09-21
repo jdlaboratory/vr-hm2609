@@ -745,6 +745,26 @@ body.is-fullscreen .btn .icon-exit-fs { display: block; }
   border: 0;
 }
 
+/* Two videos stacked vertically. The width is capped so both 16:9 players,
+   the title bar and the second video's caption fit the viewport height; if
+   they still do not (very short screens), the dialog scrolls. */
+.modal-dialog.is-video.is-dual {
+  width: min(1100px, 100%,
+             calc((100dvh - var(--safe-top) - var(--safe-bottom) - 150px) * 8 / 9));
+  overflow-y: auto;
+}
+.video-stack .video-frame:first-child { border-radius: 0; }
+.video-caption {
+  margin: 0;
+  padding: 12px 18px 10px;
+  font-size: 1.0625rem;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  color: var(--chrome-text);
+}
+.video-caption[hidden] { display: none; }
+.video-stack .video-caption[hidden] + .video-frame { margin-top: 8px; }
+
 .info-content { font-size: 0.9375rem; line-height: 1.62; color: #33333b; }
 .info-content p { margin: 0 0 0.9em; }
 .info-content p:last-child { margin-bottom: 0; }
