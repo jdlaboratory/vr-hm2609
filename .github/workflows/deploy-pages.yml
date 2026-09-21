@@ -1,7 +1,10 @@
 name: Deploy to GitHub Pages
 
-# The tour is a static site with no build step, so this workflow simply
-# publishes the repository as-is. Every push to main redeploys it.
+# The tour is a static site with no build step, so this workflow publishes the
+# repository nearly as-is: the one thing it does first is stamp a version onto
+# the site's own code URLs, so a returning visitor cannot run the new
+# index.html against a cached copy of the old stylesheet. Every push to main
+# redeploys it.
 on:
   push:
     branches: [main]
@@ -34,6 +37,15 @@ jobs:
           # Turns Pages on automatically the first time, so nobody has to
           # click through repository Settings.
           enablement: true
+
+      # Pages sends Cache-Control: max-age=600 on everything and offers no way
+      # to change it, so for ten minutes after a deploy a returning visitor can
+      # be mixing new files with cached old ones. Stamping the commit sha onto
+      # each code URL makes every deploy a fresh set of URLs. This runs on the
+      # runner's throwaway checkout only — the repository is never modified,
+      # and ?v= never shows up in a diff.
+      - name: Stamp the version onto the code URLs
+        run: python3 tools/stamp-version.py "${GITHUB_SHA::12}"
 
       - name: Upload the site
         uses: actions/upload-pages-artifact@v3

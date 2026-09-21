@@ -172,6 +172,7 @@ the page.
 ├── tools/
 │   ├── serve.py                local web server the launchers use (Python)
 │   ├── serve.js                the same server for machines without Python (Node)
+│   ├── stamp-version.py        deploy-time cache busting — see §10
 │   ├── make-web-equirect.ps1   source photos → web-sized equirectangular copies
 │   └── make-multires.py        source photos → Marzipano cube tiles
 ├── vendor/marzipano.js         Marzipano 0.10.2, vendored (no CDN dependency)
@@ -998,6 +999,42 @@ The whole repository is published, `assets/source-panoramas/` included, so the ~
 originals are downloadable from the live site too. To stop publishing them later, add an
 exclusion to the upload step in the workflow.
 
+#### Cache busting
+
+GitHub Pages sends `Cache-Control: max-age=600` on every file and gives you no way to
+change it. That is a problem the moment a deploy changes two files at once: for up to ten
+minutes a returning visitor can be running the new `index.html` against a **cached copy of
+the old stylesheet**, or — worse — a new `js/app.js` against a cached `js/tour.js`, because
+ES module imports are separate requests with separate cache entries.
+
+So the workflow stamps a version onto the site's own code URLs before it uploads:
+
+```
+css/style.css          →  css/style.css?v=f3d85e6aaaaa
+js/app.js              →  js/app.js?v=f3d85e6aaaaa
+'./tour.js'            →  './tour.js?v=f3d85e6aaaaa'      (inside js/app.js)
+'config/tour.json'     →  'config/tour.json?v=f3d85e6aaaaa'
+```
+
+The token is the first 12 characters of the commit sha, so every deploy is a fresh set of
+URLs and there is nothing stale left to match. `assets/**` is deliberately left alone: the
+panoramas are ~30 MB, they never change once generated, and stamping them would re-download
+the whole tour on every deploy to fix a problem they do not have. `api/*` is left alone too
+— those are endpoints, not files.
+
+This runs on the runner's throwaway checkout, never on yours, so the repository stays clean
+and `?v=` never turns up in a diff. To see what it would do:
+
+```bash
+git archive HEAD | tar -x -C /tmp/preview
+python3 tools/stamp-version.py test /tmp/preview
+```
+
+Every rule in [`tools/stamp-version.py`](tools/stamp-version.py) has to match something. If
+you rename `js/app.js` or move the stylesheet and forget to update the script, the deploy
+**fails** rather than quietly publishing an unstamped site — which would be the one failure
+nobody would notice until a visitor hit a half-cached page.
+
 Because the site lives under `/vr-hm2609/` rather than at a domain root, **every path in
 the project is relative** — `css/style.css`, `assets/panoramas/…`, `config/tour.json`.
 Keep it that way: a leading `/` in any path would break the deployed site while still
@@ -1036,9 +1073,12 @@ directory listings are not required.
   network address, so a visitor never downloads it.
 - The four `start-*` launchers and `tools/` are development helpers. They are
   harmless if uploaded (a static host will never execute them) but there is no reason to.
-- The tiles and panoramas are immutable once generated — set a long `Cache-Control`
-  (`max-age=31536000`) on `assets/**` and a short one on `config/tour.json` so content
-  edits go live immediately.
+- **Cache busting is done in the URL, not in headers** — see
+  [Cache busting](#cache-busting) above. It matters most on GitHub Pages, which will not
+  let you set headers at all.
+- On a host that *does* let you set headers, the tiles and panoramas are immutable once
+  generated: a long `Cache-Control` (`max-age=31536000`) on `assets/**` costs nothing and
+  saves a great deal. The code URLs carry their own version, so they need no special rule.
 - HTTPS matters for two features: the editor's **Copy** buttons use the Clipboard API
   (there is a select-the-text fallback), and the Fullscreen API is restricted on insecure
   origins. `localhost` counts as secure.
@@ -1109,6 +1149,8 @@ after your edits:
 | Q8 | `--live`: save an edit to `css/style.css` | the styling changes with **no reload** — the panorama does not move |
 | Q9 | `--live`: save an edit to any `js/*.js` | the page reloads and comes back to the same scene |
 | Q10 | `--live`: stop the server and start it again | the open page reloads by itself once it reconnects |
+| R0 | After a deploy, view source on the live site | every `css/`, `js/` and `vendor/` URL carries `?v=<sha>`; `assets/` URLs carry none |
+| R1 | Rename a file the stamper looks for, then deploy | the workflow **fails** on the stamping step rather than publishing unstamped |
 | Q2 | Open the editor on a server without `--edit` | yellow warning under the save buttons, before anything is edited |
 | Q3 | 저장 on any other server | refused with the reason, nothing lost — 내려받기 still works |
 | R | `?scene=nonsense` | default scene loads, warning in console, no crash |
