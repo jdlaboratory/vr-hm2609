@@ -213,14 +213,14 @@
           "label": "중앙 로비"
         },
         {
-          "id": "scene08-hs5",
+          "id": "scene08-hs4",
           "type": "vimeo",
           "target": "scene01",
-          "yaw": -3.131,
-          "pitch": 0.145,
-          "label": "Spirits and Spaces",
-          "videoId": "1223678702",
-          "title": "Spirits and Spaces"
+          "yaw": -0.01,
+          "pitch": 0.044,
+          "label": "Theatre of Apparitions",
+          "title": "Theatre of Apparitions",
+          "videoId": "1223679817"
         }
       ]
     },
@@ -267,9 +267,9 @@
           "target": "scene01",
           "yaw": -0.083,
           "pitch": 0.166,
-          "label": "Theatre of Apparitions",
-          "videoId": "1223679817",
-          "title": "Theatre of Apparitions"
+          "label": "Spirits and Spaces",
+          "videoId": "1223678702",
+          "title": "Spirits and Spaces"
         }
       ]
     },
@@ -720,9 +720,9 @@
           "target": "scene01",
           "yaw": -0.048,
           "pitch": 0.08,
-          "label": "Theatre of Apparitions",
-          "videoId": "1223679817",
-          "title": "Theatre of Apparitions"
+          "label": "Spirits and Spaces",
+          "videoId": "1223678702",
+          "title": "Spirits and Spaces"
         }
       ]
     },
@@ -798,11 +798,11 @@
           "id": "scene03-hs1",
           "type": "vimeo",
           "target": "scene01",
-          "yaw": 0.224,
-          "pitch": 0.128,
-          "label": "Theatre of Apparitions",
-          "title": "Theatre of Apparitions",
-          "videoId": "1223679817"
+          "yaw": 0.221,
+          "pitch": 0.108,
+          "label": "Spirits and Spaces",
+          "title": "Spirits and Spaces",
+          "videoId": "1223678702"
         }
       ]
     },
@@ -864,9 +864,9 @@
           "target": "scene01",
           "yaw": -0.027,
           "pitch": 0.138,
-          "label": "Theatre of Apparitions",
-          "videoId": "1223679817",
-          "title": "Theatre of Apparitions"
+          "label": "Spirits and Spaces",
+          "videoId": "1223678702",
+          "title": "Spirits and Spaces"
         }
       ]
     }
